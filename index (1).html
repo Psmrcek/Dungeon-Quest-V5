@@ -1,0 +1,3910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <title>Dungeon Quest v5</title>
+  <style>
+    html,body{margin:0;padding:0;background:#07070e;min-height:100%;}
+    #root{min-height:100vh;}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script>
+const {
+  useState,
+  useEffect,
+  useRef,
+  useCallback
+} = React;
+
+// ── PALETTE
+const C = {
+  bg: "#07070e",
+  card: "#0d0d1b",
+  gold: "#c9a84c",
+  red: "#e74c3c",
+  grn: "#2ecc71",
+  blu: "#3498db",
+  pur: "#9b59b6",
+  org: "#e67e22",
+  border: "#c9a84c44"
+};
+
+// ── MORALE
+const MORALE_STATES = [{
+  min: 130,
+  label: "Emboldened",
+  emoji: "🔥",
+  color: "#f1c40f",
+  mult: 1.30,
+  flee: 0.00
+}, {
+  min: 100,
+  label: "Steady",
+  emoji: "💪",
+  color: "#2ecc71",
+  mult: 1.00,
+  flee: 0.00
+}, {
+  min: 50,
+  label: "Shaken",
+  emoji: "😰",
+  color: "#e67e22",
+  mult: 0.85,
+  flee: 0.00
+}, {
+  min: 25,
+  label: "Rattled",
+  emoji: "😨",
+  color: "#e74c3c",
+  mult: 0.65,
+  flee: 0.00
+}, {
+  min: 0,
+  label: "Broken",
+  emoji: "💀",
+  color: "#9b59b6",
+  mult: 0.45,
+  flee: 0.40
+}];
+const getMS = m => MORALE_STATES.find(s => m >= s.min) || MORALE_STATES[4];
+const has = (p, id) => (p || []).includes(id);
+
+// ── 30 PERKS
+const PERKS = [{
+  id: "iron_bones",
+  name: "Iron Bones",
+  emoji: "🦴",
+  desc: "Max HP +15%. +2 armor below 50% HP."
+}, {
+  id: "arcane_blood",
+  name: "Arcane Blood",
+  emoji: "🩸",
+  desc: "INT contributes 25% more to magic power."
+}, {
+  id: "precision_strikes",
+  name: "Precision Strikes",
+  emoji: "🎯",
+  desc: "Critical hits deal +35% extra damage."
+}, {
+  id: "second_wind",
+  name: "Second Wind",
+  emoji: "💨",
+  desc: "Recover 5% max HP after defeating an enemy."
+}, {
+  id: "stone_skin",
+  name: "Stone Skin",
+  emoji: "🪨",
+  desc: "Armor effectiveness +20%."
+}, {
+  id: "duelist",
+  name: "Duelist",
+  emoji: "🤺",
+  desc: "+10% crit and +10% dodge chance."
+}, {
+  id: "berserker_rage",
+  name: "Berserker Rage",
+  emoji: "😤",
+  desc: "+1% damage per 2% HP missing."
+}, {
+  id: "scholar",
+  name: "Scholar",
+  emoji: "📚",
+  desc: "Whole party gains +10% EXP."
+}, {
+  id: "shadowstep",
+  name: "Shadowstep",
+  emoji: "👤",
+  desc: "First hit each encounter: 50% miss chance."
+}, {
+  id: "elemental_affinity",
+  name: "Elemental Affinity",
+  emoji: "⚡",
+  desc: "Magic attacks deal +20% damage."
+}, {
+  id: "battle_hardened",
+  name: "Battle Hardened",
+  emoji: "🛡️",
+  desc: "+4 WIL. Morale loss reduced 25%."
+}, {
+  id: "bloodletter",
+  name: "Bloodletter",
+  emoji: "💉",
+  desc: "Crits inflict Bleed: 3% maxHP/round for 3 rounds."
+}, {
+  id: "mystic_focus",
+  name: "Mystic Focus",
+  emoji: "🔮",
+  desc: "Magic ignores 20% of enemy WIL resistance."
+}, {
+  id: "treasure_hunter",
+  name: "Treasure Hunter",
+  emoji: "💎",
+  desc: "+12% loot drop chance."
+}, {
+  id: "vampiric_appetite",
+  name: "Vampiric Appetite",
+  emoji: "🧛",
+  desc: "Heal 8% of physical damage dealt."
+}, {
+  id: "adaptive_mind",
+  name: "Adaptive Mind",
+  emoji: "🧠",
+  desc: "Spell power += DEX x 0.2."
+}, {
+  id: "guardian_aura",
+  name: "Guardian Aura",
+  emoji: "✨",
+  desc: "All allies gain +5 armor."
+}, {
+  id: "eagle_eye",
+  name: "Eagle Eye",
+  emoji: "🦅",
+  desc: "Attacks ignore 25% of enemy dodge."
+}, {
+  id: "ancient_soul",
+  name: "Ancient Soul",
+  emoji: "🌀",
+  desc: "+1 all stats every 10 levels."
+}, {
+  id: "rune_carver",
+  name: "Rune Carver",
+  emoji: "🔯",
+  desc: "Weapon attack bonus +15%."
+}, {
+  id: "executioner",
+  name: "Executioner",
+  emoji: "⚰️",
+  desc: "+25% damage to enemies below 30% HP."
+}, {
+  id: "unbreakable_will",
+  name: "Unbreakable Will",
+  emoji: "🧱",
+  desc: "+5 WIL. Morale loss reduced 30%."
+}, {
+  id: "momentum",
+  name: "Momentum",
+  emoji: "💫",
+  desc: "Each attack +3% dmg stacking, max 5x."
+}, {
+  id: "divine_resonance",
+  name: "Divine Resonance",
+  emoji: "💞",
+  desc: "Healing an ally gives +10% dmg next round."
+}, {
+  id: "gravewalker",
+  name: "Gravewalker",
+  emoji: "☠️",
+  desc: "Once per combat: survive lethal hit at 1 HP."
+}, {
+  id: "hex_eater",
+  name: "Hex Eater",
+  emoji: "🌑",
+  desc: "+3 WIL. Resisting boss specials restores morale."
+}, {
+  id: "wild_reflexes",
+  name: "Wild Reflexes",
+  emoji: "⚡",
+  desc: "Dodging grants an immediate counter-attack."
+}, {
+  id: "deep_pockets",
+  name: "Deep Pockets",
+  emoji: "💰",
+  desc: "Gold drops +10%. Inventory +2 slots."
+}, {
+  id: "ashen_soul",
+  name: "Ashen Soul",
+  emoji: "🔥",
+  desc: "+3 STR. Boss special damage -20%."
+}, {
+  id: "mana_veins",
+  name: "Mana Veins",
+  emoji: "💙",
+  desc: "+3 MAG. Ability trigger chance +15%."
+}];
+
+// ── BASE CLASSES (unlock at Lv5)
+const BASE_CLASSES = [{
+  id: "fighter",
+  name: "Fighter",
+  emoji: "⚔️",
+  hp: 105,
+  stats: {
+    str: 9,
+    mag: 2,
+    dex: 5,
+    int: 2,
+    wil: 3
+  },
+  growth: {
+    str: 3,
+    mag: 0,
+    dex: 1,
+    int: 0,
+    wil: 1,
+    hp: 14
+  },
+  advIds: ["berserker", "warlord"],
+  desc: "Mighty warrior.",
+  perks: ["iron_bones", "momentum"],
+  wage: 85
+}, {
+  id: "mage",
+  name: "Mage",
+  emoji: "🔮",
+  hp: 68,
+  stats: {
+    str: 2,
+    mag: 9,
+    dex: 3,
+    int: 5,
+    wil: 4
+  },
+  growth: {
+    str: 0,
+    mag: 3,
+    dex: 0,
+    int: 2,
+    wil: 0,
+    hp: 5
+  },
+  advIds: ["archmage_c", "necro_c"],
+  desc: "Arcane master.",
+  perks: ["arcane_blood", "elemental_affinity"],
+  wage: 95
+}, {
+  id: "cleric",
+  name: "Cleric",
+  emoji: "✨",
+  hp: 88,
+  stats: {
+    str: 3,
+    mag: 7,
+    dex: 2,
+    int: 3,
+    wil: 7
+  },
+  growth: {
+    str: 1,
+    mag: 2,
+    dex: 0,
+    int: 1,
+    wil: 2,
+    hp: 10
+  },
+  advIds: ["saint", "paladin"],
+  desc: "Divine healer.",
+  perks: ["second_wind", "divine_resonance"],
+  wage: 90
+}, {
+  id: "rogue",
+  name: "Rogue",
+  emoji: "🗡️",
+  hp: 82,
+  stats: {
+    str: 5,
+    mag: 2,
+    dex: 10,
+    int: 3,
+    wil: 2
+  },
+  growth: {
+    str: 1,
+    mag: 0,
+    dex: 3,
+    int: 1,
+    wil: 0,
+    hp: 8
+  },
+  advIds: ["assassin", "shadowblade"],
+  desc: "Deadly trickster.",
+  perks: ["shadowstep", "precision_strikes"],
+  wage: 85
+}, {
+  id: "ranger",
+  name: "Ranger",
+  emoji: "🏹",
+  hp: 95,
+  stats: {
+    str: 5,
+    mag: 2,
+    dex: 7,
+    int: 4,
+    wil: 3
+  },
+  growth: {
+    str: 1,
+    mag: 0,
+    dex: 2,
+    int: 2,
+    wil: 0,
+    hp: 10
+  },
+  advIds: ["archer", "hunter"],
+  desc: "Versatile hunter.",
+  perks: ["eagle_eye", "scholar"],
+  wage: 85
+}, {
+  id: "monk",
+  name: "Monk",
+  emoji: "👊",
+  hp: 98,
+  stats: {
+    str: 5,
+    mag: 4,
+    dex: 6,
+    int: 2,
+    wil: 7
+  },
+  growth: {
+    str: 1,
+    mag: 1,
+    dex: 1,
+    int: 0,
+    wil: 3,
+    hp: 12
+  },
+  advIds: ["grand_monk", "bard"],
+  desc: "Inner discipline.",
+  perks: ["battle_hardened", "vampiric_appetite"],
+  wage: 85
+}];
+
+// ── ADVANCED CLASSES (unlock at Lv10)
+const ADV_CLASSES = [{
+  id: "berserker",
+  name: "Berserker",
+  emoji: "🪓",
+  base: "fighter",
+  boost: {
+    str: 5,
+    dex: 2
+  },
+  growth: {
+    str: 4,
+    mag: 0,
+    dex: 1,
+    int: 0,
+    wil: 0,
+    hp: 18
+  },
+  desc: "Rage-fueled.",
+  perks: ["berserker_rage", "executioner"]
+}, {
+  id: "warlord",
+  name: "Warlord",
+  emoji: "🪖",
+  base: "fighter",
+  boost: {
+    str: 3,
+    wil: 4
+  },
+  growth: {
+    str: 2,
+    mag: 0,
+    dex: 0,
+    int: 1,
+    wil: 3,
+    hp: 16
+  },
+  desc: "Tactical commander.",
+  perks: ["unbreakable_will", "momentum"]
+}, {
+  id: "archmage_c",
+  name: "Archmage",
+  emoji: "🌟",
+  base: "mage",
+  boost: {
+    mag: 6,
+    int: 4
+  },
+  growth: {
+    str: 0,
+    mag: 4,
+    dex: 0,
+    int: 3,
+    wil: 0,
+    hp: 5
+  },
+  desc: "Supreme caster.",
+  perks: ["mystic_focus", "rune_carver"]
+}, {
+  id: "necro_c",
+  name: "Necromancer",
+  emoji: "🧟",
+  base: "mage",
+  boost: {
+    mag: 5,
+    wil: 3
+  },
+  growth: {
+    str: 0,
+    mag: 3,
+    dex: 0,
+    int: 1,
+    wil: 3,
+    hp: 7
+  },
+  desc: "Life and death.",
+  perks: ["vampiric_appetite", "hex_eater"]
+}, {
+  id: "saint",
+  name: "Saint",
+  emoji: "👼",
+  base: "cleric",
+  boost: {
+    mag: 4,
+    wil: 6
+  },
+  growth: {
+    str: 0,
+    mag: 2,
+    dex: 0,
+    int: 1,
+    wil: 4,
+    hp: 12
+  },
+  desc: "Holy light.",
+  perks: ["guardian_aura", "ancient_soul"]
+}, {
+  id: "paladin",
+  name: "Paladin",
+  emoji: "🛡️",
+  base: "cleric",
+  boost: {
+    str: 4,
+    wil: 4
+  },
+  growth: {
+    str: 2,
+    mag: 1,
+    dex: 0,
+    int: 0,
+    wil: 3,
+    hp: 14
+  },
+  desc: "Holy knight.",
+  perks: ["stone_skin", "gravewalker"]
+}, {
+  id: "assassin",
+  name: "Assassin",
+  emoji: "🥷",
+  base: "rogue",
+  boost: {
+    dex: 6,
+    str: 3
+  },
+  growth: {
+    str: 1,
+    mag: 0,
+    dex: 4,
+    int: 0,
+    wil: 0,
+    hp: 8
+  },
+  desc: "Silent death.",
+  perks: ["bloodletter", "executioner"]
+}, {
+  id: "shadowblade",
+  name: "Shadowblade",
+  emoji: "🌑",
+  base: "rogue",
+  boost: {
+    dex: 4,
+    mag: 5
+  },
+  growth: {
+    str: 0,
+    mag: 2,
+    dex: 3,
+    int: 1,
+    wil: 0,
+    hp: 8
+  },
+  desc: "Shadow sorcery.",
+  perks: ["adaptive_mind", "wild_reflexes"]
+}, {
+  id: "archer",
+  name: "Archer",
+  emoji: "🎯",
+  base: "ranger",
+  boost: {
+    dex: 6,
+    int: 2
+  },
+  growth: {
+    str: 0,
+    mag: 0,
+    dex: 4,
+    int: 2,
+    wil: 0,
+    hp: 10
+  },
+  desc: "Precision shots.",
+  perks: ["precision_strikes", "eagle_eye"]
+}, {
+  id: "hunter",
+  name: "Hunter",
+  emoji: "🦅",
+  base: "ranger",
+  boost: {
+    str: 4,
+    dex: 3
+  },
+  growth: {
+    str: 3,
+    mag: 0,
+    dex: 2,
+    int: 1,
+    wil: 0,
+    hp: 12
+  },
+  desc: "Relentless predator.",
+  perks: ["second_wind", "deep_pockets"]
+}, {
+  id: "grand_monk",
+  name: "Grand Monk",
+  emoji: "☯️",
+  base: "monk",
+  boost: {
+    wil: 6,
+    dex: 3
+  },
+  growth: {
+    str: 1,
+    mag: 1,
+    dex: 2,
+    int: 0,
+    wil: 4,
+    hp: 14
+  },
+  desc: "Inner mastery.",
+  perks: ["unbreakable_will", "wild_reflexes"]
+}, {
+  id: "bard",
+  name: "Bard",
+  emoji: "🎵",
+  base: "monk",
+  boost: {
+    int: 5,
+    mag: 4
+  },
+  growth: {
+    str: 0,
+    mag: 2,
+    dex: 1,
+    int: 3,
+    wil: 2,
+    hp: 10
+  },
+  desc: "Songs of war.",
+  perks: ["divine_resonance", "mana_veins"]
+}];
+
+// ── LEGENDARY CLASSES (T4 hires)
+const LEG_CLASSES = [{
+  id: "dragon_knight",
+  name: "Dragon Knight",
+  emoji: "🐲",
+  stats: {
+    str: 22,
+    mag: 12,
+    dex: 10,
+    int: 8,
+    wil: 15
+  },
+  hp: 290,
+  growth: {
+    str: 4,
+    mag: 1,
+    dex: 1,
+    int: 0,
+    wil: 2,
+    hp: 20
+  },
+  perks: ["iron_bones", "berserker_rage", "ashen_soul"],
+  wage: 450
+}, {
+  id: "archmage_leg",
+  name: "Archmage",
+  emoji: "🌟",
+  stats: {
+    str: 5,
+    mag: 26,
+    dex: 8,
+    int: 20,
+    wil: 10
+  },
+  hp: 135,
+  growth: {
+    str: 0,
+    mag: 4,
+    dex: 0,
+    int: 3,
+    wil: 1,
+    hp: 6
+  },
+  perks: ["elemental_affinity", "arcane_blood", "mystic_focus"],
+  wage: 420
+}, {
+  id: "war_saint",
+  name: "War Saint",
+  emoji: "👼",
+  stats: {
+    str: 12,
+    mag: 18,
+    dex: 7,
+    int: 10,
+    wil: 22
+  },
+  hp: 205,
+  growth: {
+    str: 1,
+    mag: 3,
+    dex: 0,
+    int: 1,
+    wil: 4,
+    hp: 15
+  },
+  perks: ["divine_resonance", "guardian_aura", "ancient_soul"],
+  wage: 400
+}, {
+  id: "shadowlord",
+  name: "Shadowlord",
+  emoji: "🌑",
+  stats: {
+    str: 10,
+    mag: 15,
+    dex: 26,
+    int: 10,
+    wil: 8
+  },
+  hp: 160,
+  growth: {
+    str: 1,
+    mag: 2,
+    dex: 4,
+    int: 1,
+    wil: 1,
+    hp: 10
+  },
+  perks: ["shadowstep", "bloodletter", "wild_reflexes"],
+  wage: 440
+}];
+
+// ── ZONES
+const ZONES = [{
+  id: "forest",
+  name: "Whispering Forest",
+  emoji: "🌲",
+  minLv: 1,
+  diff: 1.0,
+  lootM: 1.0,
+  expM: 1.0,
+  color: "#2ecc71",
+  desc: "Ancient woodland teeming with beasts.",
+  avgExp: 18,
+  avgGold: 10
+}, {
+  id: "dungeon",
+  name: "Ruined Dungeon",
+  emoji: "🏚️",
+  minLv: 4,
+  diff: 1.4,
+  lootM: 1.6,
+  expM: 1.35,
+  color: "#e67e22",
+  desc: "Crumbling halls haunted by the undead.",
+  avgExp: 38,
+  avgGold: 24
+}, {
+  id: "cave",
+  name: "Crystal Caves",
+  emoji: "💎",
+  minLv: 8,
+  diff: 1.9,
+  lootM: 2.3,
+  expM: 1.8,
+  color: "#3498db",
+  desc: "Glittering tunnels hiding ancient horrors.",
+  avgExp: 80,
+  avgGold: 55
+}, {
+  id: "wilderness",
+  name: "Savage Wilderness",
+  emoji: "🌋",
+  minLv: 14,
+  diff: 2.7,
+  lootM: 3.4,
+  expM: 2.7,
+  color: "#e74c3c",
+  desc: "Untamed wasteland. Only the mighty survive.",
+  avgExp: 165,
+  avgGold: 110
+}, {
+  id: "underworld",
+  name: "The Underworld",
+  emoji: "🔥",
+  minLv: 22,
+  diff: 4.0,
+  lootM: 5.5,
+  expM: 4.0,
+  color: "#9b59b6",
+  desc: "Eternal demonic darkness.",
+  avgExp: 340,
+  avgGold: 230
+}];
+const ZONE_ENM = {
+  forest: ["Slime", "Goblin", "Forest Wolf", "Bandit", "Harpy"],
+  dungeon: ["Skeleton", "Dark Elf", "Orc", "Bandit", "Vampire"],
+  cave: ["Troll", "Werewolf", "Dark Knight", "Giant", "Vampire"],
+  wilderness: ["Manticore", "Demon", "Lich", "Giant", "Hydra"],
+  underworld: ["Demon", "Hydra", "Wyvern", "Dragon", "Demon Lord"]
+};
+const ZONE_DROP = {
+  forest: [1, 2],
+  dungeon: [1, 2, 3],
+  cave: [2, 3],
+  wilderness: [3, 4],
+  underworld: [4, 5]
+};
+const BOSSES = {
+  forest: {
+    name: "Thornwood Guardian",
+    emoji: "🌲",
+    hpM: 3.5,
+    atkM: 2.0,
+    defM: 1.5,
+    expM: 5,
+    goldM: 4,
+    special: "🌿 Root Slam — strikes ALL party members!"
+  },
+  dungeon: {
+    name: "Stone Golem",
+    emoji: "⚙️",
+    hpM: 4.2,
+    atkM: 2.3,
+    defM: 3.2,
+    expM: 5,
+    goldM: 4,
+    special: "💥 Crushing Blow — massive single hit!"
+  },
+  cave: {
+    name: "Crystal Wyrm",
+    emoji: "💎",
+    hpM: 4.8,
+    atkM: 2.6,
+    defM: 2.0,
+    expM: 6,
+    goldM: 5,
+    special: "❄️ Crystal Breath — freezing AOE!"
+  },
+  wilderness: {
+    name: "Blood Cyclops",
+    emoji: "👁️",
+    hpM: 5.5,
+    atkM: 3.2,
+    defM: 2.2,
+    expM: 7,
+    goldM: 6,
+    special: "🔴 Savage Roar — terror strikes all!"
+  },
+  underworld: {
+    name: "Arch-Demon",
+    emoji: "👿",
+    hpM: 6.5,
+    atkM: 4.0,
+    defM: 3.0,
+    expM: 9,
+    goldM: 8,
+    special: "🔥 Hellfire — infernal devastation hits all!"
+  }
+};
+const ENEMIES = [{
+  name: "Slime",
+  emoji: "🫧",
+  hp: 20,
+  atk: 4,
+  def: 0,
+  exp: 8,
+  gold: 4,
+  minLv: 1
+}, {
+  name: "Goblin",
+  emoji: "👺",
+  hp: 30,
+  atk: 7,
+  def: 2,
+  exp: 15,
+  gold: 8,
+  minLv: 1
+}, {
+  name: "Skeleton",
+  emoji: "💀",
+  hp: 42,
+  atk: 10,
+  def: 4,
+  exp: 22,
+  gold: 12,
+  minLv: 2
+}, {
+  name: "Forest Wolf",
+  emoji: "🐺",
+  hp: 48,
+  atk: 13,
+  def: 3,
+  exp: 28,
+  gold: 10,
+  minLv: 2
+}, {
+  name: "Bandit",
+  emoji: "🔪",
+  hp: 55,
+  atk: 15,
+  def: 6,
+  exp: 35,
+  gold: 22,
+  minLv: 3
+}, {
+  name: "Dark Elf",
+  emoji: "🧝",
+  hp: 60,
+  atk: 19,
+  def: 7,
+  exp: 45,
+  gold: 28,
+  minLv: 4
+}, {
+  name: "Orc",
+  emoji: "👹",
+  hp: 75,
+  atk: 18,
+  def: 9,
+  exp: 58,
+  gold: 32,
+  minLv: 4
+}, {
+  name: "Harpy",
+  emoji: "🦅",
+  hp: 68,
+  atk: 22,
+  def: 6,
+  exp: 65,
+  gold: 38,
+  minLv: 5
+}, {
+  name: "Werewolf",
+  emoji: "🦊",
+  hp: 92,
+  atk: 25,
+  def: 10,
+  exp: 80,
+  gold: 42,
+  minLv: 6
+}, {
+  name: "Vampire",
+  emoji: "🧛",
+  hp: 105,
+  atk: 27,
+  def: 13,
+  exp: 95,
+  gold: 58,
+  minLv: 7
+}, {
+  name: "Troll",
+  emoji: "🧌",
+  hp: 135,
+  atk: 23,
+  def: 17,
+  exp: 115,
+  gold: 70,
+  minLv: 8
+}, {
+  name: "Giant",
+  emoji: "🗿",
+  hp: 165,
+  atk: 29,
+  def: 14,
+  exp: 145,
+  gold: 82,
+  minLv: 10
+}, {
+  name: "Dark Knight",
+  emoji: "🖤",
+  hp: 155,
+  atk: 32,
+  def: 21,
+  exp: 165,
+  gold: 98,
+  minLv: 11
+}, {
+  name: "Lich",
+  emoji: "☠️",
+  hp: 145,
+  atk: 40,
+  def: 12,
+  exp: 195,
+  gold: 115,
+  minLv: 13
+}, {
+  name: "Manticore",
+  emoji: "🦁",
+  hp: 190,
+  atk: 35,
+  def: 17,
+  exp: 215,
+  gold: 125,
+  minLv: 14
+}, {
+  name: "Demon",
+  emoji: "😈",
+  hp: 205,
+  atk: 37,
+  def: 23,
+  exp: 245,
+  gold: 140,
+  minLv: 15
+}, {
+  name: "Hydra",
+  emoji: "🐍",
+  hp: 230,
+  atk: 34,
+  def: 21,
+  exp: 275,
+  gold: 155,
+  minLv: 17
+}, {
+  name: "Wyvern",
+  emoji: "🦎",
+  hp: 250,
+  atk: 44,
+  def: 24,
+  exp: 310,
+  gold: 175,
+  minLv: 18
+}, {
+  name: "Dragon",
+  emoji: "🐉",
+  hp: 290,
+  atk: 48,
+  def: 27,
+  exp: 360,
+  gold: 210,
+  minLv: 20
+}, {
+  name: "Elder Dragon",
+  emoji: "🐲",
+  hp: 470,
+  atk: 63,
+  def: 37,
+  exp: 620,
+  gold: 360,
+  minLv: 25
+}, {
+  name: "Demon Lord",
+  emoji: "👿",
+  hp: 650,
+  atk: 75,
+  def: 44,
+  exp: 950,
+  gold: 520,
+  minLv: 30
+}];
+const WEAPONS = [{
+  id: "w1a",
+  name: "Iron Sword",
+  emoji: "🗡️",
+  type: "weapon",
+  tier: 1,
+  atk: 6,
+  price: 90
+}, {
+  id: "w1b",
+  name: "Hunter's Bow",
+  emoji: "🏹",
+  type: "weapon",
+  tier: 1,
+  atk: 5,
+  price: 80
+}, {
+  id: "w2a",
+  name: "Steel Blade",
+  emoji: "⚔️",
+  type: "weapon",
+  tier: 2,
+  atk: 14,
+  price: 195
+}, {
+  id: "w2b",
+  name: "Battle Axe",
+  emoji: "🪓",
+  type: "weapon",
+  tier: 2,
+  atk: 17,
+  price: 215
+}, {
+  id: "w3a",
+  name: "Mithril Sword",
+  emoji: "💫",
+  type: "weapon",
+  tier: 3,
+  atk: 28,
+  price: 410
+}, {
+  id: "w3b",
+  name: "Runic Wand",
+  emoji: "🌀",
+  type: "weapon",
+  tier: 3,
+  atk: 25,
+  price: 380
+}, {
+  id: "w4a",
+  name: "Obsidian Edge",
+  emoji: "🌑",
+  type: "weapon",
+  tier: 4,
+  atk: 45,
+  price: 800
+}, {
+  id: "w5a",
+  name: "Dragon Fang",
+  emoji: "🐉",
+  type: "weapon",
+  tier: 5,
+  atk: 70,
+  price: 1600
+}, {
+  id: "w5b",
+  name: "Soul Cleaver",
+  emoji: "👑",
+  type: "weapon",
+  tier: 5,
+  atk: 78,
+  price: 1900
+}];
+const ARMORS = [{
+  id: "a1a",
+  name: "Leather Vest",
+  emoji: "🧥",
+  type: "armor",
+  tier: 1,
+  def: 5,
+  price: 80
+}, {
+  id: "a2a",
+  name: "Chain Mail",
+  emoji: "🔗",
+  type: "armor",
+  tier: 2,
+  def: 12,
+  price: 185
+}, {
+  id: "a3a",
+  name: "Mithril Plate",
+  emoji: "🛡️",
+  type: "armor",
+  tier: 3,
+  def: 24,
+  price: 390
+}, {
+  id: "a4a",
+  name: "Obsidian Armor",
+  emoji: "⬛",
+  type: "armor",
+  tier: 4,
+  def: 40,
+  price: 780
+}, {
+  id: "a5a",
+  name: "Dragon Scale",
+  emoji: "🐲",
+  type: "armor",
+  tier: 5,
+  def: 60,
+  price: 1700
+}];
+const ALL_GEAR = [...WEAPONS, ...ARMORS];
+
+// ── HELPERS
+const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const expForLv = lv => Math.floor(100 * Math.pow(1.45, lv - 1));
+const tierColor = t => ["", "#aaa", "#2ecc71", "#3498db", "#f39c12", "#e74c3c"][t] || "#aaa";
+let _uid = 0,
+  _ni = 0;
+const NAMES = ["Aldric", "Brienna", "Corvus", "Daria", "Elan", "Fira", "Galen", "Hessa", "Ivo", "Jora", "Kael", "Lyra", "Marn", "Nyx", "Oryn", "Petra", "Quinn", "Reva", "Sorin", "Thea", "Ulric", "Vessa", "Wren", "Xael", "Yara", "Zorn"];
+const nextName = () => NAMES[_ni++ % NAMES.length];
+const clsLabel = (bCls, aCls) => {
+  if (aCls) {
+    const a = ADV_CLASSES.find(x => x.id === aCls);
+    if (a) return a.name;
+    const l = LEG_CLASSES.find(x => x.id === aCls);
+    if (l) return l.name;
+  }
+  if (bCls && bCls !== "leg") {
+    const b = BASE_CLASSES.find(x => x.id === bCls);
+    if (b) return b.name;
+  }
+  return "Novice";
+};
+const clsEmoji = (bCls, aCls) => {
+  if (aCls) {
+    const a = ADV_CLASSES.find(x => x.id === aCls);
+    if (a) return a.emoji;
+    const l = LEG_CLASSES.find(x => x.id === aCls);
+    if (l) return l.emoji;
+  }
+  if (bCls && bCls !== "leg") {
+    const b = BASE_CLASSES.find(x => x.id === bCls);
+    if (b) return b.emoji;
+  }
+  return "⚔️";
+};
+const bPerks = (bCls, aCls) => [...(BASE_CLASSES.find(x => x.id === bCls)?.perks || []), ...(ADV_CLASSES.find(x => x.id === aCls)?.perks || [])];
+
+// Derive combat stats from a fighter object
+const getFS = f => {
+  const p = f.perks || [],
+    s = f.stats || {
+      str: 5,
+      mag: 5,
+      dex: 5,
+      int: 5,
+      wil: 5
+    };
+  let str = (s.str || 0) + (has(p, "ashen_soul") ? 3 : 0);
+  let mag = (s.mag || 0) + (has(p, "mana_veins") ? 3 : 0);
+  let dex = s.dex || 0,
+    wil = (s.wil || 0) + (has(p, "battle_hardened") ? 4 : 0) + (has(p, "unbreakable_will") ? 5 : 0) + (has(p, "hex_eater") ? 3 : 0);
+  let int_ = s.int || 0;
+  let physAtk = str * 2.0 + (f.weapon?.atk || 0);
+  if (has(p, "rune_carver")) physAtk *= 1.15;
+  let magAtk = mag * 2.5 + (has(p, "adaptive_mind") ? dex * 0.2 : 0) + (has(p, "arcane_blood") ? int_ * 0.625 : 0);
+  if (has(p, "elemental_affinity")) magAtk *= 1.20;
+  let armor = f.armor?.def || 0;
+  if (has(p, "stone_skin")) armor = Math.floor(armor * 1.20);
+  if (has(p, "guardian_aura")) armor += 5;
+  if (has(p, "iron_bones") && f.currentHp < f.maxHp * 0.5) armor += 2;
+  const critC = clamp(dex / 200 + (has(p, "duelist") ? 0.10 : 0), 0, 0.55);
+  const dodgeC = clamp(dex / 300 + (has(p, "duelist") ? 0.10 : 0), 0, 0.50);
+  const critM = has(p, "precision_strikes") ? 2.35 : 2.0;
+  const isMag = magAtk > physAtk * 1.2;
+  return {
+    physAtk,
+    magAtk,
+    armor,
+    wil,
+    critC,
+    dodgeC,
+    critM,
+    isMag,
+    str,
+    mag,
+    dex,
+    int: int_
+  };
+};
+
+// Auto-level a party member
+const levelMember = (m, gainRaw, expBonus = 0) => {
+  const gain = Math.floor(gainRaw * (1 + expBonus));
+  let {
+    level,
+    exp,
+    expNext,
+    hp,
+    maxHp,
+    stats,
+    growth,
+    perks,
+    baseCls,
+    advCls
+  } = m;
+  exp += gain;
+  const msgs = [];
+  while (exp >= expNext) {
+    exp -= expNext;
+    level++;
+    expNext = expForLv(level);
+    const ns = {};
+    Object.keys(stats).forEach(k => ns[k] = (stats[k] || 0) + (growth[k] || 1));
+    maxHp += growth.hp || 10;
+    hp = Math.min(maxHp, hp + Math.floor((growth.hp || 10) * 0.4));
+    stats = ns;
+    if (has(perks, "ancient_soul") && level % 10 === 0) Object.keys(stats).forEach(k => stats[k] = (stats[k] || 0) + 1);
+    if ([3, 7, 12, 18, 25].includes(level)) {
+      const cp = bPerks(baseCls, advCls);
+      const np = cp.find(pid => !(perks || []).includes(pid));
+      if (np) perks = [...(perks || []), np];
+    }
+    msgs.push(`⬆️ ${m.name} (${clsLabel(baseCls, advCls)}) → Lv.${level}!`);
+  }
+  return {
+    updated: {
+      ...m,
+      level,
+      exp,
+      expNext,
+      hp,
+      maxHp,
+      stats,
+      perks
+    },
+    msgs
+  };
+};
+
+// Level up hero
+const levelHero = p => {
+  let {
+    level,
+    exp,
+    expNext,
+    hp,
+    maxHp,
+    statPoints,
+    perkChoiceDue,
+    perks,
+    stats
+  } = p;
+  const msgs = [];
+  while (exp >= expNext) {
+    exp -= expNext;
+    level++;
+    expNext = expForLv(level);
+    statPoints += 2;
+    if (level % 3 === 0) perkChoiceDue = (perkChoiceDue || 0) + 1;
+    maxHp += 6;
+    hp = Math.min(maxHp, hp + 6);
+    if (has(perks, "ancient_soul") && level % 10 === 0) {
+      const ns = {
+        ...stats
+      };
+      Object.keys(ns).forEach(k => ns[k] = (ns[k] || 0) + 1);
+      stats = ns;
+    }
+    msgs.push({
+      t: "lvl",
+      m: `⬆️ HERO → Level ${level}! +2 stat pts${level % 3 === 0 ? " & perk choice!" : ""}`
+    });
+  }
+  return {
+    updated: {
+      ...p,
+      level,
+      exp,
+      expNext,
+      hp,
+      maxHp,
+      statPoints,
+      perkChoiceDue: perkChoiceDue || 0,
+      perks,
+      stats
+    },
+    msgs
+  };
+};
+
+// Make player/members
+const makePlayer = () => ({
+  id: "hero",
+  name: "Hero",
+  emoji: "🦸",
+  level: 1,
+  hp: 100,
+  maxHp: 100,
+  stats: {
+    str: 5,
+    mag: 5,
+    dex: 5,
+    int: 5,
+    wil: 5
+  },
+  exp: 0,
+  expNext: expForLv(1),
+  gold: 200,
+  statPoints: 0,
+  perkChoiceDue: 0,
+  perks: [],
+  weapon: null,
+  armor: null,
+  inventory: [],
+  gwUsed: false
+});
+const makeNovice = () => ({
+  id: `a${_uid++}`,
+  name: nextName(),
+  cls: "Novice",
+  baseCls: null,
+  advCls: null,
+  tier: 1,
+  level: 1,
+  hp: 80,
+  maxHp: 80,
+  stats: {
+    str: 5,
+    mag: 5,
+    dex: 5,
+    int: 5,
+    wil: 5
+  },
+  growth: {
+    str: 1,
+    mag: 1,
+    dex: 1,
+    int: 1,
+    wil: 1,
+    hp: 8
+  },
+  exp: 0,
+  expNext: expForLv(1),
+  wage: 40,
+  perks: [],
+  heal: 0,
+  gwUsed: false
+});
+const makePreCls = bc => ({
+  id: `a${_uid++}`,
+  name: nextName(),
+  cls: bc.name,
+  baseCls: bc.id,
+  advCls: null,
+  tier: 2,
+  level: 1,
+  hp: bc.hp,
+  maxHp: bc.hp,
+  stats: {
+    ...bc.stats
+  },
+  growth: {
+    ...bc.growth
+  },
+  exp: 0,
+  expNext: expForLv(1),
+  wage: bc.wage,
+  perks: [bc.perks[0]],
+  heal: bc.id === "cleric" ? 20 : 0,
+  gwUsed: false
+});
+const makePreAdv = ac => {
+  const bc = BASE_CLASSES.find(b => b.id === ac.base) || BASE_CLASSES[0];
+  const stats = {
+    ...bc.stats
+  };
+  Object.keys(ac.boost || {}).forEach(k => stats[k] = (stats[k] || 0) + ac.boost[k]);
+  const hp = bc.hp + 35;
+  return {
+    id: `a${_uid++}`,
+    name: nextName(),
+    cls: ac.name,
+    baseCls: ac.base,
+    advCls: ac.id,
+    tier: 3,
+    level: 1,
+    hp,
+    maxHp: hp,
+    stats,
+    growth: {
+      ...ac.growth
+    },
+    exp: 0,
+    expNext: expForLv(1),
+    wage: Math.floor(hp * 0.85 + 90),
+    perks: [...bc.perks.slice(0, 1), ...ac.perks.slice(0, 1)],
+    heal: ["saint", "paladin"].includes(ac.id) ? 28 : 0,
+    gwUsed: false
+  };
+};
+const makeLeg = lc => ({
+  id: `a${_uid++}`,
+  name: nextName(),
+  cls: lc.name,
+  baseCls: "leg",
+  advCls: lc.id,
+  tier: 4,
+  level: 1,
+  hp: lc.hp,
+  maxHp: lc.hp,
+  stats: {
+    ...lc.stats
+  },
+  growth: {
+    ...lc.growth
+  },
+  exp: 0,
+  expNext: expForLv(1),
+  wage: lc.wage,
+  perks: [...lc.perks],
+  heal: lc.id === "war_saint" ? 50 : 0,
+  gwUsed: false
+});
+const getPool = lv => {
+  const r = [];
+  for (let i = 0; i < 3; i++) r.push(makeNovice());
+  if (lv >= 5) [...BASE_CLASSES].sort(() => Math.random() - 0.5).slice(0, Math.min(4, Math.ceil(lv / 3))).forEach(bc => r.push(makePreCls(bc)));
+  if (lv >= 10) [...ADV_CLASSES].sort(() => Math.random() - 0.5).slice(0, Math.min(3, Math.ceil(lv / 5))).forEach(ac => r.push(makePreAdv(ac)));
+  if (lv >= 20) [...LEG_CLASSES].sort(() => Math.random() - 0.5).slice(0, 2).forEach(lc => r.push(makeLeg(lc)));
+  return r.sort(() => Math.random() - 0.5).slice(0, 9);
+};
+const pickEnemy = (zId, lv) => {
+  const n = ZONE_ENM[zId] || [];
+  const p = ENEMIES.filter(e => n.includes(e.name) && e.minLv <= lv + 4);
+  return p.length ? p[rnd(0, p.length - 1)] : ENEMIES[rnd(0, Math.floor(ENEMIES.length * 0.4))];
+};
+const scaleEnemy = (base, lv, diff) => {
+  const s = (1 + (lv - 1) * 0.10) * diff;
+  const hp = Math.floor(base.hp * s);
+  return {
+    ...base,
+    id: `e${Math.random()}`,
+    hp,
+    currentHp: hp,
+    atk: Math.floor(base.atk * s),
+    armor: Math.floor(base.def * s * 0.7),
+    wil: Math.floor(base.def * s * 0.5),
+    exp: Math.floor(base.exp * s * 1.15),
+    gold: Math.floor(base.gold * s * 1.1)
+  };
+};
+const buildBoss = (zId, lv, diff) => {
+  const b = BOSSES[zId];
+  if (!b) return null;
+  const ref = ENEMIES[rnd(Math.floor(ENEMIES.length * 0.4), ENEMIES.length - 1)];
+  const s = (1 + (lv - 1) * 0.1) * diff;
+  const hp = Math.floor(ref.hp * s * b.hpM);
+  return {
+    ...b,
+    id: `boss${Math.random()}`,
+    hp,
+    currentHp: hp,
+    atk: Math.floor(ref.atk * s * b.atkM),
+    armor: Math.floor(ref.def * s * b.defM * 0.7),
+    wil: Math.floor(ref.def * s * b.defM * 0.5),
+    exp: Math.floor(ref.exp * s * b.expM * 1.2),
+    gold: Math.floor(ref.gold * s * b.goldM * 1.2),
+    isBoss: true
+  };
+};
+const rollDrop = (zId, boss = false) => {
+  const tiers = ZONE_DROP[zId] || [1, 2];
+  const tier = boss ? tiers[tiers.length - 1] : tiers[rnd(0, tiers.length - 1)];
+  const pool = (Math.random() < 0.55 ? WEAPONS : ARMORS).filter(g => g.tier === tier);
+  if (!pool.length) return null;
+  return {
+    ...pool[rnd(0, pool.length - 1)],
+    dropId: `d${Math.random()}`
+  };
+};
+const genShop = lv => {
+  const mt = Math.min(5, Math.floor(lv / 4) + 2);
+  return [...ALL_GEAR].filter(g => g.tier <= mt).sort(() => Math.random() - 0.5).slice(0, 5).map(g => ({
+    ...g,
+    shopId: `s${Math.random()}`
+  }));
+};
+const processDrops = (drops, p) => {
+  let weapon = p.weapon ? {
+      ...p.weapon
+    } : null,
+    armor = p.armor ? {
+      ...p.armor
+    } : null,
+    inv = [...(p.inventory || [])];
+  const out = drops.map(d => {
+    if (d.type === "weapon") {
+      if (!weapon || d.tier > weapon.tier) {
+        if (weapon && inv.length < 8) inv.push(weapon);
+        weapon = d;
+        return {
+          ...d,
+          result: "Equipped ✓"
+        };
+      }
+      if (inv.length < 8) {
+        inv.push(d);
+        return {
+          ...d,
+          result: "→ Inventory"
+        };
+      }
+      return {
+        ...d,
+        result: "Full"
+      };
+    } else {
+      if (!armor || d.tier > armor.tier) {
+        if (armor && inv.length < 8) inv.push(armor);
+        armor = d;
+        return {
+          ...d,
+          result: "Equipped ✓"
+        };
+      }
+      if (inv.length < 8) {
+        inv.push(d);
+        return {
+          ...d,
+          result: "→ Inventory"
+        };
+      }
+      return {
+        ...d,
+        result: "Full"
+      };
+    }
+  });
+  return {
+    weapon,
+    armor,
+    inventory: inv.slice(0, 8),
+    out
+  };
+};
+const dangerRating = (n, diff) => {
+  const s = n * diff;
+  if (s < 6) return {
+    label: "Safe",
+    icon: "🟢",
+    color: "#2ecc71"
+  };
+  if (s < 20) return {
+    label: "Risky",
+    icon: "🟡",
+    color: "#f1c40f"
+  };
+  if (s < 55) return {
+    label: "Dangerous",
+    icon: "🟠",
+    color: "#e67e22"
+  };
+  if (s < 130) return {
+    label: "Extreme",
+    icon: "🔴",
+    color: "#e74c3c"
+  };
+  return {
+    label: "Legendary",
+    icon: "☠️",
+    color: "#9b59b6"
+  };
+};
+const genPerkChoices = owned => PERKS.filter(p => !(owned || []).includes(p.id)).sort(() => Math.random() - 0.5).slice(0, 3);
+
+// ── CSS
+const CSS = `*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}body{margin:0;background:#07070e;}
+@keyframes flicker{0%,100%{opacity:1}47%{opacity:.72}55%{opacity:.92}}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes pglow{0%,100%{box-shadow:0 0 6px #9b59b644}50%{box-shadow:0 0 20px #9b59b699}}
+@keyframes bglow{0%,100%{box-shadow:0 0 10px #e74c3c44}50%{box-shadow:0 0 28px #e74c3c99}}
+@keyframes gglow{0%,100%{box-shadow:0 0 8px #c9a84c33}50%{box-shadow:0 0 22px #c9a84c88}}
+.btn{display:block;width:100%;background:#0d0d1b;border:2px solid #c9a84c;color:#e8d5a3;font-family:'Courier New',monospace;font-size:14px;padding:11px 13px;margin-bottom:7px;cursor:pointer;letter-spacing:.05em;text-align:left;-webkit-appearance:none;border-radius:0;transition:background .12s,color .12s;}
+.btn:active{background:#c9a84c;color:#07070e;}
+.btn.dis{opacity:.3;pointer-events:none;}
+.btn.red{border-color:#e74c3c;}.btn.red:active{background:#e74c3c;color:#fff;}
+.btn.grn{border-color:#2ecc71;}.btn.grn:active{background:#2ecc71;color:#07070e;}
+.btn.pur{border-color:#9b59b6;animation:pglow 2s infinite;}.btn.pur:active{background:#9b59b6;color:#fff;animation:none;}
+.btn.gold{border-color:#c9a84c;animation:gglow 2s infinite;}.btn.gold:active{background:#c9a84c;color:#07070e;animation:none;}
+.btn.blu{border-color:#3498db;}.btn.blu:active{background:#3498db;color:#fff;}
+.btn.sm{font-size:12px;padding:5px 9px;margin-bottom:3px;width:auto;display:inline-block;}
+.btn.atk{text-align:center;font-size:17px;padding:13px;border-color:#e74c3c;animation:pulse 1.5s infinite;}.btn.atk:active{background:#e74c3c;animation:none;}
+.btn.spec{text-align:center;font-size:13px;padding:10px;border-color:#9b59b6;}.btn.spec:active{background:#9b59b6;color:#fff;}
+.btn.def{text-align:center;font-size:13px;padding:10px;border-color:#3498db;}.btn.def:active{background:#3498db;color:#fff;}
+.btn.flee{font-size:12px;color:#555;padding:7px 13px;border:1px solid #ffffff10;background:transparent;}
+.card{border:1px solid #c9a84c44;background:#0d0d1b;padding:10px;margin-bottom:7px;}
+.boss-card{border-color:#e74c3c99;animation:bglow 2s infinite;}
+.perk-card{border:1px solid #9b59b655;background:#0d0d1b;padding:10px;margin-bottom:7px;cursor:pointer;transition:border-color .15s;}
+.perk-card:active,.perk-card.sel{border-color:#9b59b6;background:#9b59b611;}
+.cls-card{border:1px solid #c9a84c44;background:#0d0d1b;padding:10px;margin-bottom:7px;cursor:pointer;transition:border-color .15s,background .12s;}
+.cls-card:active{border-color:#c9a84c;background:#c9a84c11;}
+.lbl{color:#c9a84c;font-size:10px;letter-spacing:.22em;text-transform:uppercase;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #c9a84c33;}
+.row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #ffffff08;font-size:13px;}
+.log-entry{font-size:12px;line-height:1.65;animation:slideUp .15s ease;padding:1px 0;}
+.log-atk{color:#e8d5a3;}.log-dmg{color:#e74c3c;}.log-heal{color:#2ecc71;}
+.log-win{color:#f1c40f;font-weight:bold;}.log-lvl{color:#9b59b6;font-weight:bold;}.log-evt{color:#3498db;}
+.track{background:#1a1a2e;height:6px;width:100%;margin-top:2px;}
+.fill{height:100%;transition:width .35s;}
+.title-glow{text-shadow:0 0 22px #c9a84c,0 0 55px #c9a84c44;}
+.shake{animation:shake .32s;}
+.tab{flex:1;background:#0d0d1b;border:1px solid #c9a84c33;color:#555;font-family:'Courier New',monospace;font-size:12px;padding:6px 4px;cursor:pointer;-webkit-appearance:none;border-radius:0;letter-spacing:.08em;}
+.tab.on{background:#c9a84c1a;border-color:#c9a84c;color:#c9a84c;}
+.cntbtn{background:#0d0d1b;border:2px solid #c9a84c44;color:#e8d5a3;font-family:'Courier New',monospace;font-size:15px;padding:9px 14px;cursor:pointer;-webkit-appearance:none;border-radius:0;}
+.cntbtn:active{background:#c9a84c22;}
+.preset{background:#0d0d1b;border:1px solid #c9a84c33;color:#666;font-family:'Courier New',monospace;font-size:12px;padding:5px 9px;cursor:pointer;-webkit-appearance:none;border-radius:0;}
+.preset.on,.preset:active{border-color:#c9a84c;color:#c9a84c;background:#c9a84c11;}`;
+
+// ── APP
+function App() {
+  const [screen, setScreen] = useState("title");
+  const [player, setPlayer] = useState(makePlayer);
+  const [party, setParty] = useState([]);
+  const [pool, setPool] = useState(() => getPool(1));
+  const [shop, setShop] = useState(() => genShop(1));
+  const [log, setLog] = useState([]);
+  const [battle, setBattle] = useState(null);
+  const [results, setResults] = useState(null);
+  const [shake, setShake] = useState(false);
+  const [gTab, setGTab] = useState("hire");
+  const [selZone, setSelZone] = useState(null);
+  const [planCount, setPlanCount] = useState(10);
+  const [clsChoice, setClsChoice] = useState(null);
+  const [perkChoices, setPerkChoices] = useState(null);
+  const playerRef = useRef(player);
+  const partyRef = useRef(party);
+  const logRef = useRef(null);
+  useEffect(() => {
+    playerRef.current = player;
+  }, [player]);
+  useEffect(() => {
+    partyRef.current = party;
+  }, [party]);
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [log]);
+  const pushLog = useCallback(e => setLog(l => [...l, ...e].slice(-120)), []);
+  const setCount = n => setPlanCount(clamp(n, 1, 100));
+
+  // Show perk choices if pending
+  useEffect(() => {
+    if (player.perkChoiceDue > 0 && !perkChoices && screen === "menu") {
+      setPerkChoices(genPerkChoices(player.perks));
+    }
+  }, [player.perkChoiceDue, screen]);
+
+  // ── RESOLVE ADVENTURE
+  const resolveAdventure = useCallback((totalExp, totalGold, fighters, wipe, rawDrops = [], done = 0, planned = 0) => {
+    const p = playerRef.current;
+    const expBonus = has(p.perks, "scholar") || partyRef.current.some(m => has(m.perks, "scholar")) ? 0.10 : 0;
+    const goldMult = has(p.perks, "deep_pockets") ? 1.10 : 1;
+    const {
+      weapon,
+      armor,
+      inventory,
+      out: processed
+    } = processDrops(rawDrops, p);
+    const heroRes = levelHero({
+      ...p,
+      exp: p.exp + Math.floor(totalExp * (1 + expBonus)),
+      weapon,
+      armor,
+      inventory
+    });
+    heroRes.msgs.forEach(m => pushLog([m]));
+    setPlayer({
+      ...heroRes.updated,
+      gold: heroRes.updated.gold + Math.floor(totalGold * goldMult)
+    });
+    const mExp = wipe ? Math.floor(totalExp * 0.4) : totalExp;
+    const newParty = partyRef.current.map(m => {
+      const f = fighters.find(x => x.id === m.id);
+      const {
+        updated,
+        msgs
+      } = levelMember(m, mExp, expBonus);
+      msgs.forEach(msg => pushLog([{
+        t: "lvl",
+        m: msg
+      }]));
+      const hp = f?.alive ? Math.min(updated.maxHp, (f.currentHp || 0) + 25) : Math.max(1, Math.floor(updated.maxHp * 0.08));
+      return {
+        ...updated,
+        hp
+      };
+    });
+    setParty(newParty);
+    setResults({
+      exp: Math.floor(totalExp * (1 + expBonus)),
+      gold: Math.floor(totalGold * goldMult),
+      wipe,
+      drops: processed,
+      survived: fighters.filter(f => f.alive).length,
+      total: fighters.length,
+      done,
+      planned
+    });
+    setTimeout(() => setScreen("results"), 900);
+  }, [pushLog]);
+  useEffect(() => {
+    if (!battle) return;
+    if (battle.phase === "victory") resolveAdventure(battle.exp, battle.gold, battle.fighters, false, battle.drops, battle.doneEnc, battle.totalEnc);else if (battle.phase === "wipe") resolveAdventure(Math.floor(battle.exp * 0.35), Math.floor(battle.gold * 0.25), battle.fighters, true, battle.drops.slice(0, Math.ceil(battle.drops.length / 2)), battle.doneEnc, battle.totalEnc);
+  }, [battle?.phase, resolveAdventure]);
+
+  // ── HIRE/FIRE
+  const hire = adv => {
+    if (party.length >= 3 || player.gold < adv.wage) return;
+    setPlayer(p => ({
+      ...p,
+      gold: p.gold - adv.wage
+    }));
+    setParty(p => [...p, {
+      ...adv
+    }]);
+    setPool(p => p.filter(a => a.id !== adv.id));
+  };
+  const fire = adv => {
+    setParty(p => p.filter(a => a.id !== adv.id));
+    setPool(p => [...p, adv]);
+  };
+  const refreshPool = () => {
+    if (player.gold < 20) return;
+    setPlayer(p => ({
+      ...p,
+      gold: p.gold - 20
+    }));
+    setPool(getPool(player.level));
+  };
+
+  // ── CLASS PROMOTIONS
+  const promoteBase = (member, clsId) => {
+    const bc = BASE_CLASSES.find(b => b.id === clsId);
+    if (!bc) return;
+    setParty(p => p.map(m => {
+      if (m.id !== member.id) return m;
+      const stats = {};
+      Object.keys(bc.stats).forEach(k => stats[k] = Math.max(m.stats[k] || 0, bc.stats[k] || 0));
+      const maxHp = Math.max(m.maxHp, bc.hp);
+      const hp = Math.min(maxHp, m.hp + 15);
+      const perks = [...(m.perks || []), ...bc.perks.filter(p => !(m.perks || []).includes(p))];
+      return {
+        ...m,
+        cls: bc.name,
+        baseCls: bc.id,
+        growth: {
+          ...bc.growth
+        },
+        stats,
+        maxHp,
+        hp,
+        perks,
+        heal: bc.id === "cleric" ? 20 : m.heal
+      };
+    }));
+    setClsChoice(null);
+  };
+  const promoteAdv = (member, clsId) => {
+    const ac = ADV_CLASSES.find(a => a.id === clsId);
+    if (!ac) return;
+    setParty(p => p.map(m => {
+      if (m.id !== member.id) return m;
+      const stats = {
+        ...m.stats
+      };
+      Object.keys(ac.boost || {}).forEach(k => stats[k] = (stats[k] || 0) + ac.boost[k]);
+      const maxHp = m.maxHp + 20;
+      const hp = Math.min(maxHp, m.hp + 20);
+      const perks = [...(m.perks || []), ...ac.perks.filter(p => !(m.perks || []).includes(p))];
+      return {
+        ...m,
+        cls: ac.name,
+        advCls: ac.id,
+        growth: {
+          ...ac.growth
+        },
+        stats,
+        maxHp,
+        hp,
+        perks,
+        heal: ["saint", "paladin"].includes(ac.id) ? 30 : m.heal
+      };
+    }));
+    setClsChoice(null);
+  };
+
+  // ── SHOP/INVENTORY
+  const buyItem = item => {
+    if (player.gold < item.price) return;
+    setPlayer(p => {
+      let {
+        weapon,
+        armor
+      } = p;
+      let inv = [...(p.inventory || [])];
+      if (item.type === "weapon") {
+        if (!weapon || item.tier >= weapon.tier) {
+          if (weapon) inv.push(weapon);
+          weapon = item;
+        } else if (inv.length < 8) inv.push(item);
+      } else {
+        if (!armor || item.tier >= armor.tier) {
+          if (armor) inv.push(armor);
+          armor = item;
+        } else if (inv.length < 8) inv.push(item);
+      }
+      return {
+        ...p,
+        gold: p.gold - item.price,
+        weapon,
+        armor,
+        inventory: inv.slice(0, 8)
+      };
+    });
+    setShop(s => s.filter(x => x.shopId !== item.shopId));
+  };
+  const refreshShop = () => {
+    if (player.gold < 30) return;
+    setPlayer(p => ({
+      ...p,
+      gold: p.gold - 30
+    }));
+    setShop(genShop(player.level));
+  };
+  const equipFromInv = (item, idx) => setPlayer(p => {
+    let inv = [...(p.inventory || [])],
+      weapon = p.weapon,
+      armor = p.armor;
+    if (item.type === "weapon") {
+      if (weapon) inv[idx] = weapon;else inv.splice(idx, 1);
+      weapon = item;
+    } else {
+      if (armor) inv[idx] = armor;else inv.splice(idx, 1);
+      armor = item;
+    }
+    return {
+      ...p,
+      weapon,
+      armor,
+      inventory: inv
+    };
+  });
+  const dropFromInv = idx => setPlayer(p => {
+    const i = [...(p.inventory || [])];
+    i.splice(idx, 1);
+    return {
+      ...p,
+      inventory: i
+    };
+  });
+  const unequip = slot => setPlayer(p => {
+    const item = p[slot];
+    if (!item) return p;
+    const inv = [...(p.inventory || [])];
+    if (inv.length < 8) inv.push(item);
+    return {
+      ...p,
+      [slot]: null,
+      inventory: inv
+    };
+  });
+
+  // ── START ZONE
+  const startZone = (zone, count) => {
+    const isBoss = Math.random() < 0.01;
+    const base = isBoss ? buildBoss(zone.id, player.level, zone.diff) || scaleEnemy(pickEnemy(zone.id, player.level), player.level, zone.diff) : scaleEnemy(pickEnemy(zone.id, player.level), player.level, zone.diff);
+    const fighters = [{
+      ...player,
+      currentHp: player.hp,
+      maxHp: player.maxHp,
+      alive: true,
+      isHero: true,
+      mStacks: 0,
+      gwUsed: player.gwUsed || false,
+      ssUsed: false,
+      bleedRounds: 0,
+      drBonus: false
+    }, ...party.map(m => ({
+      ...m,
+      currentHp: m.hp,
+      alive: true,
+      mStacks: 0,
+      gwUsed: false,
+      ssUsed: false,
+      bleedRounds: 0,
+      drBonus: false
+    }))];
+    setBattle({
+      fighters,
+      enemy: base,
+      exp: 0,
+      gold: 0,
+      drops: [],
+      phase: "player",
+      zone: zone.id,
+      isBoss,
+      heroAbUsed: false,
+      heroDefending: false,
+      mAb: {},
+      round: 0,
+      totalEnc: count,
+      doneEnc: 0,
+      morale: 100
+    });
+    setLog([{
+      t: "evt",
+      m: `${zone.emoji} Party enters ${zone.name} — ${count} encounter${count > 1 ? "s" : ""} planned!`
+    }, isBoss ? {
+      t: "dmg",
+      m: `⚠️⚠️ BOSS: ${base.emoji} ${base.name}  HP:${base.currentHp} ⚠️⚠️`
+    } : {
+      t: "evt",
+      m: `⚠️ Encounter 1/${count}: ${base.emoji} ${base.name}  HP:${base.currentHp}`
+    }]);
+    setScreen("battle");
+  };
+
+  // ── BATTLE COMBAT ENGINE
+  const doAction = actionType => {
+    if (!battle || battle.phase !== "player") return;
+    const zone = ZONES.find(z => z.id === battle.zone);
+
+    // FLEE
+    if (actionType === "flee") {
+      const ms = getMS(battle.morale);
+      const hfs = getFS(battle.fighters[0] || {
+        perks: [],
+        stats: {
+          dex: 5
+        },
+        currentHp: 100,
+        maxHp: 100,
+        armor: 0
+      });
+      const fPct = clamp(0.30 + ms.flee + hfs.dex / 500, 0.05, 0.90);
+      if (Math.random() < fPct) {
+        pushLog([{
+          t: "evt",
+          m: "🏃 Fled successfully! Partial rewards kept."
+        }]);
+        setBattle(b => ({
+          ...b,
+          phase: "wipe"
+        }));
+      } else {
+        const en = battle.enemy;
+        const nf = battle.fighters.map(f => ({
+          ...f
+        }));
+        const alive = nf.filter(f => f.alive);
+        const msgs = [{
+          t: "dmg",
+          m: "🏃 Flee failed! Enemy retaliates!"
+        }];
+        if (alive.length) {
+          const t = alive[rnd(0, alive.length - 1)];
+          const dmg = Math.max(1, en.atk - (t.armor || 0) * 0.6 + rnd(-2, 4));
+          t.currentHp = Math.max(0, t.currentHp - dmg);
+          if (t.currentHp <= 0) {
+            t.alive = false;
+            msgs.push({
+              t: "dmg",
+              m: `💔 ${t.name} falls!`
+            });
+          } else msgs.push({
+            t: "dmg",
+            m: `${en.emoji}→${t.emoji} ${t.name} [${dmg}]`
+          });
+          const fi = nf.findIndex(x => x.id === t.id);
+          if (fi >= 0) nf[fi] = t;
+        }
+        pushLog(msgs);
+        if (!nf.some(f => f.alive)) {
+          setBattle(b => ({
+            ...b,
+            fighters: nf,
+            phase: "wipe"
+          }));
+          return;
+        }
+        setBattle(b => ({
+          ...b,
+          fighters: nf
+        }));
+        setShake(true);
+        setTimeout(() => setShake(false), 350);
+      }
+      return;
+    }
+    let {
+      fighters,
+      enemy,
+      exp,
+      gold,
+      drops,
+      mAb,
+      round,
+      isBoss,
+      heroAbUsed,
+      heroDefending,
+      totalEnc,
+      doneEnc,
+      morale
+    } = battle;
+    fighters = fighters.map(f => ({
+      ...f
+    }));
+    enemy = {
+      ...enemy
+    };
+    const entries = [];
+    const newRound = round + 1;
+    const isSpec = actionType === "special" && !heroAbUsed;
+    const isDef = actionType === "defend";
+    const newMA = {
+      ...mAb
+    };
+    let morDelta = 0;
+    const ms = getMS(morale);
+
+    // ── APPLY BLEEDS
+    fighters.forEach(f => {
+      if (f.alive && f.bleedRounds > 0) {
+        const bd = Math.floor(f.maxHp * 0.03);
+        f.currentHp = Math.max(0, f.currentHp - bd);
+        f.bleedRounds--;
+        entries.push({
+          t: "dmg",
+          m: `🩸 ${f.name} bleeds −${bd}HP (${f.bleedRounds} left)`
+        });
+        if (f.currentHp <= 0) {
+          f.alive = false;
+          morDelta -= 15;
+          entries.push({
+            t: "dmg",
+            m: `💔 ${f.name} falls to bleed!`
+          });
+        }
+      }
+    });
+
+    // ── HERO ACTION
+    const hero = fighters[0];
+    if (hero?.alive && !isDef) {
+      const hfs = getFS(hero);
+      let isMag = hfs.isMag;
+      let rawAtk = isMag ? hfs.magAtk : hfs.physAtk;
+      let dmg,
+        crit = false;
+      // Shadowstep: first round first attack miss chance
+      if (newRound === 1 && !hero.ssUsed && has(hero.perks, "shadowstep") && Math.random() < 0.50) {
+        hero.ssUsed = true;
+        entries.push({
+          t: "heal",
+          m: "👤 Hero's Shadowstep evaded the opening strike!"
+        });
+      } else {
+        if (!isMag) {
+          const eArm = (enemy.armor || 0) * 0.6;
+          dmg = Math.max(1, rawAtk - eArm + rnd(-3, 8));
+        } else {
+          const eWil = (enemy.wil || 0) * (has(hero.perks, "mystic_focus") ? 0.40 : 0.50);
+          dmg = Math.max(1, rawAtk - eWil + rnd(-3, 8));
+        }
+        // Perk mods
+        if (has(hero.perks, "berserker_rage")) dmg = Math.floor(dmg * (1 + (1 - hero.currentHp / hero.maxHp) * 0.5));
+        if (has(hero.perks, "executioner") && enemy.currentHp < enemy.hp * 0.30) dmg = Math.floor(dmg * 1.25);
+        if (has(hero.perks, "momentum") && hero.mStacks > 0) dmg = Math.floor(dmg * (1 + Math.min(5, hero.mStacks) * 0.03));
+        if (hero.drBonus) {
+          dmg = Math.floor(dmg * 1.10);
+          hero.drBonus = false;
+        }
+        dmg = Math.floor(dmg * ms.mult);
+        if (isSpec) {
+          dmg = Math.floor(dmg * 2.2);
+          entries.push({
+            t: "win",
+            m: `💥 Hero Power Strike → ${enemy.emoji} ${enemy.name} [${dmg} dmg]!`
+          });
+        } else entries.push({
+          t: "atk",
+          m: `🦸 Hero Lv.${hero.level} → ${enemy.emoji} ${enemy.name} [${dmg} dmg]`
+        });
+        // Crit check
+        if (Math.random() < hfs.critC) {
+          dmg = Math.floor(dmg * hfs.critM);
+          crit = true;
+          morDelta += 5;
+          entries.push({
+            t: "win",
+            m: `✨ CRIT! ×${hfs.critM.toFixed(2)}`
+          });
+          if (has(hero.perks, "bloodletter")) {
+            enemy.bleedApplied = 3;
+            entries.push({
+              t: "dmg",
+              m: "🩸 Bleed inflicted on enemy!"
+            });
+          }
+        }
+        // Vampiric
+        if (!isMag && has(hero.perks, "vampiric_appetite")) {
+          const h = Math.floor(dmg * 0.08);
+          hero.currentHp = Math.min(hero.maxHp, hero.currentHp + h);
+          if (h > 0) entries.push({
+            t: "heal",
+            m: `🧛 Vampiric: Hero +${h}HP`
+          });
+        }
+        hero.mStacks = crit ? 0 : Math.min(5, (hero.mStacks || 0) + 1);
+        enemy.currentHp -= dmg;
+        morDelta += 2;
+      }
+      fighters[0] = hero;
+    } else if (isDef) {
+      entries.push({
+        t: "heal",
+        m: `🛡️ Hero braces! Damage halved this round.`
+      });
+    }
+
+    // ── PARTY ACTIONS
+    fighters.slice(1).forEach((f, fi) => {
+      if (!f.alive || enemy.currentHp <= 0) return;
+      const fs = getFS(f);
+      // Healer logic
+      if (f.heal > 0) {
+        const allLow = fighters.some(x => x.alive && x.currentHp < x.maxHp * 0.5);
+        if (!newMA[f.id] && allLow) {
+          const h = f.heal + Math.floor(fs.mag * 0.8) + rnd(3, 12);
+          fighters.forEach(x => {
+            if (x.alive) {
+              x.currentHp = Math.min(x.maxHp, x.currentHp + h);
+              if (has(f.perks, "divine_resonance")) x.drBonus = true;
+            }
+          });
+          entries.push({
+            t: "heal",
+            m: `✨ ${f.name}: Mass Heal! All party +${h}HP!`
+          });
+          newMA[f.id] = "heal";
+          morDelta += 8;
+          return;
+        }
+        const hurt = fighters.find(x => x.alive && x.currentHp < x.maxHp * 0.4);
+        if (hurt) {
+          const h = f.heal + Math.floor(fs.mag * 0.5) + rnd(0, 8);
+          hurt.currentHp = Math.min(hurt.maxHp, hurt.currentHp + h);
+          if (has(f.perks, "divine_resonance")) hurt.drBonus = true;
+          entries.push({
+            t: "heal",
+            m: `✨ ${f.name} heals ${hurt.name} +${h}HP!`
+          });
+          morDelta += 4;
+          return;
+        }
+      }
+      // Resurrection
+      if (has(f.perks, "gravewalker") && !f.gwUsed) {
+        const fallen = fighters.find(x => !x.alive);
+        if (fallen) {
+          fallen.alive = true;
+          fallen.currentHp = Math.floor(fallen.maxHp * 0.3);
+          f.gwUsed = true;
+          entries.push({
+            t: "heal",
+            m: `☠️ ${f.name}: Gravewalker — ${fallen.name} revived!`
+          });
+          morDelta += 20;
+          return;
+        }
+      }
+      // Attack
+      let dmg = Math.max(1, fs.physAtk - (enemy.armor || 0) * 0.6 + rnd(-3, 7));
+      if (fs.isMag) dmg = Math.max(1, fs.magAtk - (enemy.wil || 0) * (has(f.perks, "mystic_focus") ? 0.40 : 0.50) + rnd(-3, 7));
+      if (has(f.perks, "berserker_rage")) dmg = Math.floor(dmg * (1 + (1 - f.currentHp / f.maxHp) * 0.5));
+      if (has(f.perks, "executioner") && enemy.currentHp < enemy.hp * 0.30) dmg = Math.floor(dmg * 1.25);
+      if (has(f.perks, "momentum") && f.mStacks > 0) dmg = Math.floor(dmg * (1 + Math.min(5, f.mStacks) * 0.03));
+      if (f.drBonus) {
+        dmg = Math.floor(dmg * 1.10);
+        f.drBonus = false;
+      }
+      dmg = Math.floor(dmg * ms.mult);
+      let crit = false;
+      if (Math.random() < fs.critC) {
+        dmg = Math.floor(dmg * fs.critM);
+        crit = true;
+        morDelta += 3;
+        entries.push({
+          t: "win",
+          m: `✨ ${f.name} crits!`
+        });
+        if (has(f.perks, "bloodletter")) {
+          enemy.bleedApplied = 3;
+          entries.push({
+            t: "dmg",
+            m: "🩸 Bleed!"
+          });
+        }
+      }
+      if (!fs.isMag && has(f.perks, "vampiric_appetite")) {
+        const h = Math.floor(dmg * 0.08);
+        f.currentHp = Math.min(f.maxHp, f.currentHp + h);
+      }
+      f.mStacks = crit ? 0 : Math.min(5, (f.mStacks || 0) + 1);
+      entries.push({
+        t: "atk",
+        m: `${clsEmoji(f.baseCls, f.advCls)} ${f.name} Lv.${f.level} → ${enemy.emoji} [${dmg}]`
+      });
+      enemy.currentHp -= dmg;
+      fighters[fi + 1] = f;
+    });
+
+    // ── ENEMY DEFEATED
+    if (enemy.currentHp <= 0) {
+      exp += enemy.exp;
+      gold += enemy.gold;
+      morDelta += 20;
+      // Second wind
+      fighters.forEach(f => {
+        if (f.alive && has(f.perks, "second_wind")) {
+          const h = Math.floor(f.maxHp * 0.05);
+          f.currentHp = Math.min(f.maxHp, f.currentHp + h);
+        }
+      });
+      if (Math.random() < (has(player.perks, "treasure_hunter") ? 0.40 : 0.28)) {
+        const d = rollDrop(battle.zone, isBoss);
+        if (d) {
+          drops = [...drops, d];
+          entries.push({
+            t: "win",
+            m: `🎁 Loot: ${d.emoji} ${d.name}!`
+          });
+        }
+      }
+      if (isBoss) {
+        const d2 = rollDrop(battle.zone, true);
+        if (d2) {
+          drops = [...drops, d2];
+          entries.push({
+            t: "win",
+            m: `🎁 Boss bonus: ${d2.emoji} ${d2.name}!`
+          });
+        }
+      }
+      entries.push({
+        t: "win",
+        m: `💀 ${enemy.name} ${isBoss ? "SLAIN" : "defeated"}! [${doneEnc + 1}/${totalEnc}] +${enemy.exp}EXP +${enemy.gold}G`
+      });
+      const newDone = doneEnc + 1;
+      if (newDone >= totalEnc) {
+        entries.push({
+          t: "win",
+          m: `🏆 ADVENTURE COMPLETE! All ${totalEnc} encounters conquered!`
+        });
+        pushLog(entries);
+        setBattle(b => ({
+          ...b,
+          fighters,
+          enemy,
+          exp,
+          gold,
+          drops,
+          morale: clamp(morale + morDelta, 0, 150),
+          doneEnc: newDone,
+          phase: "victory"
+        }));
+        return;
+      }
+      // Rest & next encounter
+      const rest = Math.max(5, 8 + Math.floor(newDone * 0.3));
+      fighters.forEach(f => {
+        if (f.alive) f.currentHp = Math.min(f.maxHp, f.currentHp + rest);
+      });
+      entries.push({
+        t: "heal",
+        m: `💨 Brief rest — survivors +${rest}HP`
+      });
+      const nextNum = newDone + 1;
+      const nextBoss = Math.random() < Math.min(nextNum * 0.01, 1.0);
+      const nextEnemy = nextBoss ? buildBoss(battle.zone, player.level, zone.diff) || scaleEnemy(pickEnemy(battle.zone, player.level), player.level, zone.diff) : scaleEnemy(pickEnemy(battle.zone, player.level), player.level, zone.diff);
+      entries.push(nextBoss ? {
+        t: "dmg",
+        m: `⚠️⚠️ Enc ${nextNum}/${totalEnc} — BOSS: ${nextEnemy.emoji} ${nextEnemy.name} HP:${nextEnemy.currentHp} ⚠️⚠️`
+      } : {
+        t: "evt",
+        m: `⚠️ Encounter ${nextNum}/${totalEnc}: ${nextEnemy.emoji} ${nextEnemy.name} HP:${nextEnemy.currentHp}`
+      });
+      pushLog(entries);
+      setBattle(b => ({
+        ...b,
+        fighters,
+        enemy: nextEnemy,
+        exp,
+        gold,
+        drops,
+        morale: clamp(morale + morDelta, 0, 150),
+        doneEnc: newDone,
+        isBoss: nextBoss,
+        heroAbUsed: false,
+        heroDefending: false,
+        mAb: {},
+        round: 0,
+        phase: "player"
+      }));
+      return;
+    }
+
+    // ── ENEMY ATTACKS BACK
+    const alive = fighters.filter(f => f.alive);
+    if (alive.length > 0) {
+      if (isBoss && newRound % 3 === 0) {
+        entries.push({
+          t: "dmg",
+          m: `🔱 ${enemy.name}: ${enemy.special}`
+        });
+        alive.forEach(f => {
+          let dmg = Math.max(1, Math.floor(enemy.atk * 0.55) + rnd(-2, 5));
+          const wil = getFS(f).wil || 0;
+          if (has(f.perks, "ashen_soul")) dmg = Math.floor(dmg * 0.80);
+          if (has(f.perks, "hex_eater")) {
+            morDelta += 5;
+          }
+          dmg = Math.max(1, dmg - Math.floor(wil * 0.3));
+          f.currentHp = Math.max(0, f.currentHp - dmg);
+          morDelta -= 8;
+          if (f.currentHp <= 0) {
+            if (!f.gwUsed && has(f.perks, "gravewalker")) {
+              f.currentHp = 1;
+              f.gwUsed = true;
+              entries.push({
+                t: "heal",
+                m: `☠️ Gravewalker saves ${f.name}! Survives at 1HP!`
+              });
+            } else {
+              f.alive = false;
+              entries.push({
+                t: "dmg",
+                m: `  💔 ${f.name} falls!`
+              });
+              morDelta -= 15;
+            }
+          } else entries.push({
+            t: "dmg",
+            m: `  💥 ${f.emoji} ${f.name} −${dmg}HP`
+          });
+        });
+      } else {
+        const t = alive[rnd(0, alive.length - 1)];
+        const tfs = getFS(t);
+        // Dodge check
+        const dodgePct = tfs.dodgeC - (isBoss && has(t.perks, "eagle_eye") ? -0.05 : 0);
+        if (Math.random() < dodgePct) {
+          entries.push({
+            t: "heal",
+            m: `💨 ${t.name} dodges!`
+          });
+          morDelta += 5;
+          if (has(t.perks, "wild_reflexes")) {
+            const wrdmg = Math.max(1, tfs.physAtk - (enemy.armor || 0) * 0.6 + rnd(-2, 4));
+            enemy.currentHp -= wrdmg;
+            entries.push({
+              t: "win",
+              m: `⚡ Wild Reflexes counter! [${wrdmg}]`
+            });
+          }
+        } else {
+          let dmg = Math.max(1, enemy.atk - (t.armor || 0) * 0.6 + rnd(-3, 7));
+          if (isDef && t.isHero) dmg = Math.floor(dmg * 0.45);
+          if (has(t.perks, "battle_hardened")) dmg = Math.floor(dmg * 0.92);
+          t.currentHp = Math.max(0, t.currentHp - dmg);
+          morDelta -= 3;
+          if (t.currentHp <= 0) {
+            if (!t.gwUsed && has(t.perks, "gravewalker")) {
+              t.currentHp = 1;
+              t.gwUsed = true;
+              entries.push({
+                t: "heal",
+                m: `☠️ Gravewalker saves ${t.name}!`
+              });
+            } else {
+              t.alive = false;
+              entries.push({
+                t: "dmg",
+                m: `💔 ${t.name} has fallen!`
+              });
+              morDelta -= 15;
+            }
+          } else {
+            entries.push({
+              t: "dmg",
+              m: `${enemy.emoji} → ${t.emoji} ${t.name} [${dmg} dmg${isDef && t.isHero ? " ← BLOCKED!" : ""}]`
+            });
+          }
+          const fi = fighters.findIndex(x => x.id === t.id);
+          if (fi >= 0) fighters[fi] = t;
+        }
+      }
+    }
+    // Apply morale loss reduction perks
+    let finalMorDelta = morDelta;
+    if (morDelta < 0) {
+      const ml = fighters.some(f => f.alive && has(f.perks, "battle_hardened")) ? 0.75 : 1;
+      const ml2 = fighters.some(f => f.alive && has(f.perks, "unbreakable_will")) ? 0.70 : 1;
+      finalMorDelta = Math.floor(morDelta * ml * ml2);
+    }
+
+    // Wipe check
+    if (!fighters.some(f => f.alive)) {
+      entries.push({
+        t: "dmg",
+        m: "💀 The entire party has been defeated..."
+      });
+      pushLog(entries);
+      setShake(true);
+      setTimeout(() => setShake(false), 400);
+      setBattle(b => ({
+        ...b,
+        fighters,
+        enemy,
+        exp,
+        gold,
+        drops,
+        morale: 0,
+        phase: "wipe"
+      }));
+      return;
+    }
+    pushLog(entries);
+    setShake(true);
+    setTimeout(() => setShake(false), 340);
+    setBattle(b => ({
+      ...b,
+      fighters,
+      enemy,
+      exp,
+      gold,
+      drops,
+      morale: clamp(morale + finalMorDelta, 0, 150),
+      phase: "player",
+      heroAbUsed: isSpec ? true : heroAbUsed,
+      heroDefending: isDef,
+      mAb: newMA,
+      round: newRound
+    }));
+  };
+
+  // ── STAT SPEND
+  const spendStat = stat => setPlayer(p => {
+    if (p.statPoints <= 0) return p;
+    const ns = {
+      ...p.stats
+    };
+    ns[stat] = (ns[stat] || 0) + 1;
+    let maxHp = p.maxHp,
+      hp = p.hp;
+    if (stat === "str") {
+      maxHp += 5;
+      hp = Math.min(maxHp, hp + 5);
+    }
+    return {
+      ...p,
+      stats: ns,
+      statPoints: p.statPoints - 1,
+      maxHp,
+      hp
+    };
+  });
+  const pickPerk = id => {
+    setPlayer(p => ({
+      ...p,
+      perks: [...(p.perks || []), id],
+      perkChoiceDue: Math.max(0, (p.perkChoiceDue || 0) - 1)
+    }));
+    setPerkChoices(null);
+  };
+
+  // ── WIDGETS
+  const Scr = ({
+    children,
+    center
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: "'Courier New',Courier,monospace",
+      background: C.bg,
+      color: "#e8d5a3",
+      minHeight: "100svh",
+      maxWidth: 440,
+      margin: "0 auto",
+      padding: "13px 12px 50px",
+      display: "flex",
+      flexDirection: "column",
+      ...(center ? {
+        justifyContent: "center",
+        alignItems: "center",
+        textAlign: "center"
+      } : {})
+    }
+  }, /*#__PURE__*/React.createElement("style", null, CSS), children);
+  const Hdr = ({
+    icon,
+    title
+  }) => /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: 11
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: C.gold,
+      letterSpacing: ".28em"
+    }
+  }, "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 18,
+      color: C.gold,
+      letterSpacing: ".12em",
+      margin: "4px 0"
+    }
+  }, icon, " ", title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: C.gold,
+      letterSpacing: ".28em"
+    }
+  }, "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"));
+  const Bar = ({
+    cur,
+    max,
+    color
+  }) => {
+    const pct = clamp(cur / max * 100, 0, 100);
+    return /*#__PURE__*/React.createElement("div", {
+      className: "track"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "fill",
+      style: {
+        width: `${pct}%`,
+        background: color ?? (pct > 50 ? C.grn : pct > 25 ? C.org : C.red)
+      }
+    }));
+  };
+  const PBar = () => {
+    const hfs = getFS({
+      ...player,
+      currentHp: player.hp
+    });
+    return /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 9
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 13
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "\uD83E\uDDB8 ", /*#__PURE__*/React.createElement("b", null, "Hero"), " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "Lv.", player.level), player.weapon && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#555",
+        fontSize: 10
+      }
+    }, " ", player.weapon.emoji, "+", player.weapon.atk, "atk"), player.armor && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#555",
+        fontSize: 10
+      }
+    }, " ", player.armor.emoji, "+", player.armor.def, "def")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "\uD83D\uDCB0", player.gold, "G")), /*#__PURE__*/React.createElement(Bar, {
+      cur: player.hp,
+      max: player.maxHp
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#555",
+        marginTop: 2,
+        lineHeight: 1.6
+      }
+    }, "HP ", player.hp, "/", player.maxHp, " \xB7 ATK ", Math.floor(hfs.physAtk), "/", Math.floor(hfs.magAtk), " \xB7 DEF ", Math.floor(hfs.armor), "/", hfs.wil, "WIL \xB7 EXP ", player.exp, "/", player.expNext, player.statPoints > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.pur
+      }
+    }, " \u2605", player.statPoints, "pts")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#555",
+        marginTop: 1
+      }
+    }, "STR ", player.stats.str, " \xB7 MAG ", player.stats.mag, " \xB7 DEX ", player.stats.dex, " \xB7 INT ", player.stats.int, " \xB7 WIL ", player.stats.wil));
+  };
+  const MoraleBar = ({
+    morale
+  }) => {
+    const ms = getMS(morale);
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: ms.color
+      }
+    }, ms.emoji, " ", ms.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement(Bar, {
+      cur: morale,
+      max: 150,
+      color: ms.color
+    })), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: ms.color
+      }
+    }, morale));
+  };
+  const GearRow = ({
+    item,
+    label,
+    onUnequip
+  }) => item ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "5px 0",
+      borderBottom: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13
+    }
+  }, item.emoji, " ", /*#__PURE__*/React.createElement("b", null, item.name), " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: tierColor(item.tier),
+      fontSize: 10
+    }
+  }, "[T", item.tier, "]"), " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: C.grn,
+      fontSize: 11
+    }
+  }, "+", item.atk ?? item.def, item.type === "weapon" ? " ATK" : " DEF")), onUnequip && /*#__PURE__*/React.createElement("button", {
+    className: "btn red sm",
+    style: {
+      marginLeft: 6
+    },
+    onClick: onUnequip
+  }, "\u2191")) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: "#333",
+      fontSize: 12,
+      padding: "5px 0",
+      borderBottom: `1px solid ${C.border}`
+    }
+  }, "\u2014 ", label, " empty \u2014");
+
+  // ── PERK CHOICE OVERLAY
+  if (perkChoices && screen !== "battle") {
+    return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement(Hdr, {
+      icon: "\u2B50",
+      title: "CHOOSE A PERK"
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "center",
+        color: "#888",
+        fontSize: 12,
+        marginBottom: 14
+      }
+    }, "Your hero has grown. Choose one permanent perk."), perkChoices.map(p => /*#__PURE__*/React.createElement("div", {
+      key: p.id,
+      className: "perk-card",
+      onClick: () => pickPerk(p.id)
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 15,
+        marginBottom: 3
+      }
+    }, p.emoji, " ", /*#__PURE__*/React.createElement("b", {
+      style: {
+        color: C.gold
+      }
+    }, p.name)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12,
+        color: "#888"
+      }
+    }, p.desc))));
+  }
+
+  // ── CLASS CHOICE OVERLAY
+  if (clsChoice) {
+    const {
+      member,
+      type
+    } = clsChoice;
+    const choices = type === "base" ? BASE_CLASSES : ADV_CLASSES.filter(a => a.base === member.baseCls);
+    return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement(Hdr, {
+      icon: "\u2694\uFE0F",
+      title: type === "base" ? "CHOOSE CLASS" : "ADVANCED CLASS"
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "center",
+        color: "#888",
+        fontSize: 12,
+        marginBottom: 5
+      }
+    }, member.emoji, " ", /*#__PURE__*/React.createElement("b", null, member.name), " is ready to specialize."), type === "base" && /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "center",
+        color: "#555",
+        fontSize: 11,
+        marginBottom: 12
+      }
+    }, "This choice shapes their entire future."), choices.map(cls => /*#__PURE__*/React.createElement("div", {
+      key: cls.id,
+      className: "cls-card",
+      onClick: () => type === "base" ? promoteBase(member, cls.id) : promoteAdv(member, cls.id)
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 15,
+        marginBottom: 2
+      }
+    }, cls.emoji, " ", /*#__PURE__*/React.createElement("b", {
+      style: {
+        color: C.gold
+      }
+    }, cls.name)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: "#888",
+        marginBottom: 4
+      }
+    }, cls.desc), type === "base" && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#555"
+      }
+    }, "STR", cls.stats.str, " MAG", cls.stats.mag, " DEX", cls.stats.dex, " INT", cls.stats.int, " WIL", cls.stats.wil, " \xB7 Adv: ", cls.advIds.map(id => ADV_CLASSES.find(a => a.id === id)?.name).join(" / ")), type === "adv" && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: C.pur
+      }
+    }, "Perks: ", cls.perks.map(pid => PERKS.find(p => p.id === pid)?.name).join(", ")))), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      style: {
+        marginTop: 4
+      },
+      onClick: () => setClsChoice(null)
+    }, "\u2190 Cancel"));
+  }
+
+  // ════ TITLE
+  if (screen === "title") return /*#__PURE__*/React.createElement(Scr, {
+    center: true
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 70,
+      marginBottom: 10,
+      animation: "pulse 2.2s infinite"
+    }
+  }, "\u2694\uFE0F"), /*#__PURE__*/React.createElement("div", {
+    className: "title-glow",
+    style: {
+      fontSize: 28,
+      fontWeight: "bold",
+      letterSpacing: ".18em",
+      marginBottom: 5
+    }
+  }, "DUNGEON", /*#__PURE__*/React.createElement("br", null), "QUEST"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: "#333",
+      fontSize: 10,
+      letterSpacing: ".18em",
+      marginBottom: 4
+    }
+  }, "VERSION 5.0"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      color: "#222",
+      fontSize: 10,
+      lineHeight: 1.9,
+      marginBottom: 50
+    }
+  }, "6 DEEP STATS \xB7 30 PERKS \xB7 CLASS TREE", /*#__PURE__*/React.createElement("br", null), "MORALE SYSTEM \xB7 5 ZONES \xB7 1-100 ENCOUNTERS"), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    style: {
+      textAlign: "center",
+      animation: "flicker 1.8s infinite",
+      maxWidth: 240
+    },
+    onClick: () => setScreen("menu")
+  }, "\u25B6  PRESS START"));
+
+  // ════ MENU
+  if (screen === "menu") {
+    const readyBase = party.filter(m => !m.baseCls && m.level >= 5);
+    const readyAdv = party.filter(m => m.baseCls && !m.advCls && m.level >= 10);
+    return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement(Hdr, {
+      icon: "\uD83C\uDFF0",
+      title: "ADVENTURE GUILD"
+    }), /*#__PURE__*/React.createElement(PBar, null), party.length > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Party (", party.length, "/3)"), party.map(m => /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 12,
+        padding: "3px 0",
+        borderBottom: `1px solid ${C.border}`
+      }
+    }, /*#__PURE__*/React.createElement("span", null, clsEmoji(m.baseCls, m.advCls), " ", m.name, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#555",
+        fontSize: 10
+      }
+    }, "[", clsLabel(m.baseCls, m.advCls), "]")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "Lv.", m.level)))), readyBase.length > 0 && readyBase.map(m => /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      style: {
+        border: `1px solid ${C.pur}66`,
+        background: "#9b59b611",
+        padding: "8px 11px",
+        marginBottom: 7,
+        fontSize: 12
+      }
+    }, "\u2694\uFE0F ", m.name, " reached Lv.", m.level, "! ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.pur
+      }
+    }, "Ready to choose a class!"), /*#__PURE__*/React.createElement("button", {
+      className: "btn pur sm",
+      style: {
+        marginTop: 5,
+        width: "100%",
+        textAlign: "center"
+      },
+      onClick: () => setClsChoice({
+        member: m,
+        type: "base"
+      })
+    }, "CHOOSE CLASS \u2192"))), readyAdv.length > 0 && readyAdv.map(m => /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      style: {
+        border: `1px solid ${C.gold}66`,
+        background: "#c9a84c11",
+        padding: "8px 11px",
+        marginBottom: 7,
+        fontSize: 12
+      }
+    }, "\uD83C\uDFC6 ", m.name, " reached Lv.", m.level, "! ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "Ready for advanced class!"), /*#__PURE__*/React.createElement("button", {
+      className: "btn gold sm",
+      style: {
+        marginTop: 5,
+        width: "100%",
+        textAlign: "center"
+      },
+      onClick: () => setClsChoice({
+        member: m,
+        type: "adv"
+      })
+    }, "ADVANCE CLASS \u2192"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.gold,
+        fontSize: 10,
+        letterSpacing: ".25em",
+        textAlign: "center",
+        margin: "5px 0 8px"
+      }
+    }, "\u2500\u2500 ACTIONS \u2500\u2500"), /*#__PURE__*/React.createElement("button", {
+      className: "btn grn",
+      onClick: () => setScreen("zones")
+    }, "\uD83D\uDDFA\uFE0F  EXPLORE ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#555",
+        fontSize: 12
+      }
+    }, "\u2014 choose zone & plan")), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      onClick: () => {
+        setGTab("hire");
+        setScreen("guild");
+      }
+    }, "\uD83C\uDFF0  GUILD ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#555",
+        fontSize: 12
+      }
+    }, "\u2014 hire \xB7 shop \xB7 gear")), /*#__PURE__*/React.createElement("button", {
+      className: `btn ${player.statPoints > 0 ? "pur" : ""}`,
+      onClick: () => setScreen("levelup")
+    }, "\u2B06\uFE0F  LEVEL UP ", player.statPoints > 0 ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.pur
+      }
+    }, "\u2014 \u2605", player.statPoints, " pts!") : /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#555",
+        fontSize: 12
+      }
+    }, "\u2014 stats \xB7 perks \xB7 party")));
+  }
+
+  // ════ ZONES
+  if (screen === "zones") return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement(Hdr, {
+    icon: "\uD83D\uDDFA\uFE0F",
+    title: "CHOOSE ZONE"
+  }), /*#__PURE__*/React.createElement(PBar, null), ZONES.map((z, i) => {
+    const locked = player.level < z.minLv;
+    return /*#__PURE__*/React.createElement("div", {
+      key: z.id,
+      onClick: locked ? null : () => {
+        setSelZone(z);
+        setPlanCount(10);
+        setScreen("plan");
+      },
+      style: {
+        border: `1px solid ${locked ? "#1a1a1a" : z.color + "55"}`,
+        background: C.card,
+        padding: 11,
+        marginBottom: 7,
+        opacity: locked ? 0.38 : 1,
+        cursor: locked ? "not-allowed" : "pointer"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 3
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 14
+      }
+    }, z.emoji, " ", /*#__PURE__*/React.createElement("b", {
+      style: {
+        color: locked ? "#444" : z.color
+      }
+    }, z.name)), locked ? /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#444",
+        fontSize: 11
+      }
+    }, "\uD83D\uDD12 Lv.", z.minLv) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: z.color
+      }
+    }, "★".repeat(i + 1) + "☆".repeat(4 - i))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: "#555",
+        marginBottom: locked ? 0 : 4
+      }
+    }, z.desc), !locked && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 10,
+        fontSize: 10,
+        flexWrap: "wrap"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.org
+      }
+    }, "\u2694\uFE0F \xD7", z.diff), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "\uD83D\uDCB0 \xD7", z.lootM), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.pur
+      }
+    }, "\u2B06\uFE0F \xD7", z.expM), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.red
+      }
+    }, "\uD83D\uDC51 1%\u2192100%")));
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn",
+    onClick: () => setScreen("menu")
+  }, "\u2190 Back"));
+
+  // ════ PLAN
+  if (screen === "plan" && selZone) {
+    const z = selZone;
+    const danger = dangerRating(planCount, z.diff);
+    const expectedBosses = Math.floor(0.01 * planCount * (planCount + 1) / 2);
+    const lvScale = 1 + (player.level - 1) * 0.10;
+    const estExp = Math.floor(z.avgExp * lvScale * z.expM * planCount);
+    const estGold = Math.floor(z.avgGold * lvScale * z.lootM * planCount);
+    return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement(Hdr, {
+      icon: z.emoji,
+      title: "PLAN ADVENTURE"
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        border: `1px solid ${z.color}55`,
+        background: C.card,
+        padding: "9px 11px",
+        marginBottom: 11
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 14,
+        color: z.color,
+        marginBottom: 2
+      }
+    }, z.emoji, " ", /*#__PURE__*/React.createElement("b", null, z.name)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: "#555"
+      }
+    }, z.desc)), /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Number of Encounters"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 5,
+        marginBottom: 9
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "cntbtn",
+      onClick: () => setCount(planCount - 10)
+    }, "\u221210"), /*#__PURE__*/React.createElement("button", {
+      className: "cntbtn",
+      onClick: () => setCount(planCount - 1)
+    }, "\u22121"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 42,
+        fontWeight: "bold",
+        color: C.gold,
+        width: 88,
+        textAlign: "center",
+        textShadow: `0 0 18px ${C.gold}55`
+      }
+    }, planCount), /*#__PURE__*/React.createElement("button", {
+      className: "cntbtn",
+      onClick: () => setCount(planCount + 1)
+    }, "+1"), /*#__PURE__*/React.createElement("button", {
+      className: "cntbtn",
+      onClick: () => setCount(planCount + 10)
+    }, "+10")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 4,
+        marginBottom: 12,
+        justifyContent: "center",
+        flexWrap: "wrap"
+      }
+    }, [1, 5, 10, 25, 50, 100].map(n => /*#__PURE__*/React.createElement("button", {
+      key: n,
+      className: `preset ${planCount === n ? "on" : ""}`,
+      onClick: () => setCount(n)
+    }, n))), /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 12
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Adventure Forecast"), /*#__PURE__*/React.createElement("div", {
+      className: "row"
+    }, /*#__PURE__*/React.createElement("span", null, "Danger"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: danger.color
+      }
+    }, danger.icon, " ", danger.label)), /*#__PURE__*/React.createElement("div", {
+      className: "row"
+    }, /*#__PURE__*/React.createElement("span", null, "Boss chance (enc 1\u2192", planCount, ")"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.red
+      }
+    }, "1% \u2192 ", Math.min(planCount, 100), "%")), /*#__PURE__*/React.createElement("div", {
+      className: "row"
+    }, /*#__PURE__*/React.createElement("span", null, "Expected bosses"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.org
+      }
+    }, "~", expectedBosses)), /*#__PURE__*/React.createElement("div", {
+      className: "row"
+    }, /*#__PURE__*/React.createElement("span", null, "Est. EXP (all)"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.pur
+      }
+    }, "~", estExp.toLocaleString())), /*#__PURE__*/React.createElement("div", {
+      className: "row",
+      style: {
+        borderBottom: "none"
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Est. Gold"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "~", estGold.toLocaleString(), "G"))), /*#__PURE__*/React.createElement("button", {
+      className: "btn gold",
+      style: {
+        textAlign: "center",
+        fontSize: 15,
+        padding: 14
+      },
+      onClick: () => startZone(z, planCount)
+    }, "\u2694\uFE0F  EMBARK \u2014 ", planCount, " ENCOUNTER", planCount > 1 ? "S" : ""), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      onClick: () => setScreen("zones")
+    }, "\u2190 Change Zone"));
+  }
+
+  // ════ BATTLE
+  if (screen === "battle" && battle) {
+    const enemy = battle.enemy;
+    const zone = ZONES.find(z => z.id === battle.zone);
+    const pct = battle.totalEnc > 0 ? battle.doneEnc / battle.totalEnc * 100 : 0;
+    const ms = getMS(battle.morale);
+    return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 11,
+        marginBottom: 5,
+        color: "#555"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: zone?.color
+      }
+    }, zone?.emoji, " ", zone?.name), battle.isBoss && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.red,
+        animation: "pulse 1s infinite"
+      }
+    }, "\u26A0\uFE0F BOSS"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, battle.exp, "EXP \xB7 ", battle.gold, "G")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginBottom: 7
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 10,
+        color: "#555",
+        marginBottom: 1
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Enc ", battle.doneEnc + 1, "/", battle.totalEnc), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: ms.color
+      }
+    }, ms.emoji, " ", ms.label, " (", battle.morale, ")")), /*#__PURE__*/React.createElement("div", {
+      className: "track",
+      style: {
+        height: 7
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "fill",
+      style: {
+        width: `${pct}%`,
+        background: zone?.color ?? C.gold
+      }
+    }))), /*#__PURE__*/React.createElement(MoraleBar, {
+      morale: battle.morale
+    }), enemy && /*#__PURE__*/React.createElement("div", {
+      className: `card ${battle.isBoss ? "boss-card" : ""} ${shake ? "shake" : ""}`,
+      style: {
+        textAlign: "center",
+        marginBottom: 7
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: battle.isBoss ? 60 : 48,
+        margin: "4px 0"
+      }
+    }, enemy.emoji), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: battle.isBoss ? 16 : 13,
+        color: battle.isBoss ? C.red : "#e8d5a3"
+      }
+    }, enemy.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#555",
+        marginBottom: 3
+      }
+    }, "HP ", Math.max(0, enemy.currentHp), "/", enemy.hp, " \xB7 ARM ", enemy.armor, " \xB7 WIL ", enemy.wil), /*#__PURE__*/React.createElement(Bar, {
+      cur: Math.max(0, enemy.currentHp),
+      max: enemy.hp
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Party"), battle.fighters.map(f => /*#__PURE__*/React.createElement("div", {
+      key: f.id,
+      style: {
+        marginBottom: 4,
+        opacity: f.alive ? 1 : .28
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        fontSize: 12
+      }
+    }, /*#__PURE__*/React.createElement("span", null, f.isHero ? "🦸" : clsEmoji(f.baseCls, f.advCls), " ", f.name, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold,
+        fontSize: 10
+      }
+    }, "Lv.", f.level), battle.heroDefending && f.isHero && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.blu,
+        fontSize: 10
+      }
+    }, " \uD83D\uDEE1\uFE0F"), f.bleedRounds > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.red,
+        fontSize: 9
+      }
+    }, " \uD83E\uDE78", f.bleedRounds)), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: f.alive ? C.grn : C.red
+      }
+    }, f.alive ? `${Math.max(0, f.currentHp)}/${f.maxHp}` : "☠️")), f.alive && /*#__PURE__*/React.createElement(Bar, {
+      cur: Math.max(0, f.currentHp),
+      max: f.maxHp
+    })))), /*#__PURE__*/React.createElement("div", {
+      ref: logRef,
+      style: {
+        flex: 1,
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        padding: 8,
+        marginBottom: 8,
+        overflowY: "auto",
+        maxHeight: 145,
+        minHeight: 55
+      }
+    }, log.map((e, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: `log-entry log-${e.t}`
+    }, e.m))), battle.phase === "player" ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      className: "btn atk",
+      onClick: () => doAction("attack")
+    }, "\u2694\uFE0F  ATTACK"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 6,
+        marginBottom: 6
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      className: `btn spec ${battle.heroAbUsed ? "dis" : ""}`,
+      onClick: () => doAction("special")
+    }, "\uD83D\uDCA5 POWER STRIKE", battle.heroAbUsed && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: "#555",
+        display: "block"
+      }
+    }, "per encounter")), /*#__PURE__*/React.createElement("button", {
+      className: "btn def",
+      onClick: () => doAction("defend")
+    }, "\uD83D\uDEE1\uFE0F DEFEND", battle.heroDefending && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9,
+        color: C.blu,
+        display: "block"
+      }
+    }, "active"))), /*#__PURE__*/React.createElement("button", {
+      className: "btn flee",
+      onClick: () => doAction("flee")
+    }, "\uD83C\uDFC3 Flee (", Math.round(clamp(0.30 + getMS(battle.morale).flee + (player.stats.dex || 5) / 500, 0.05, 0.90) * 100), "% success)")) : /*#__PURE__*/React.createElement("button", {
+      className: "btn dis"
+    }, "\u23F3 Resolving..."));
+  }
+
+  // ════ RESULTS
+  if (screen === "results" && results) {
+    const full = results.done === results.planned;
+    return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement(Hdr, {
+      icon: full ? "🏆" : results.wipe ? "💀" : "⚔️",
+      title: full ? "FULL CLEAR!" : results.wipe ? "DEFEATED" : "VICTORY"
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        textAlign: "center",
+        padding: 16,
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 48,
+        marginBottom: 6
+      }
+    }, full ? "🏆" : results.wipe ? "💀" : "⚔️"), full ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.gold
+      }
+    }, "All ", results.planned, " encounters conquered!", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: "#888"
+      }
+    }, results.survived, "/", results.total, " survived")) : results.wipe ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.red
+      }
+    }, "Defeated at ", results.done, "/", results.planned, ".", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: "#555"
+      }
+    }, "Partial salvage kept.")) : /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.gold
+      }
+    }, results.done, "/", results.planned, " cleared!", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12,
+        color: "#888"
+      }
+    }, results.survived, "/", results.total, " survived"))), /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Summary"), /*#__PURE__*/React.createElement("div", {
+      className: "row"
+    }, /*#__PURE__*/React.createElement("span", null, "Encounters"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: full ? C.gold : C.org
+      }
+    }, results.done, "/", results.planned)), /*#__PURE__*/React.createElement("div", {
+      className: "row"
+    }, /*#__PURE__*/React.createElement("span", null, "EXP Earned"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.pur
+      }
+    }, "+", results.exp)), /*#__PURE__*/React.createElement("div", {
+      className: "row",
+      style: {
+        borderBottom: "none"
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Gold"), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "+", results.gold, "G"))), results.drops?.length > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "\uD83C\uDF81 Loot"), results.drops.map((d, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "row"
+    }, /*#__PURE__*/React.createElement("span", null, d.emoji, " ", d.name, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: tierColor(d.tier),
+        fontSize: 10
+      }
+    }, "[T", d.tier, "]")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: d.result?.includes("✓") ? C.grn : C.gold
+      }
+    }, d.result)))), player.statPoints > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.pur,
+        fontSize: 12,
+        textAlign: "center",
+        marginBottom: 8
+      }
+    }, "\u2605 ", player.statPoints, " stat points to spend!"), player.perkChoiceDue > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.gold,
+        fontSize: 12,
+        textAlign: "center",
+        marginBottom: 8
+      }
+    }, "\u2B50 ", player.perkChoiceDue, " perk choice", player.perkChoiceDue > 1 ? "s" : "", " available!"), /*#__PURE__*/React.createElement("button", {
+      className: "btn grn",
+      onClick: () => setScreen("menu")
+    }, "\u25B6  Return to Guild"));
+  }
+
+  // ════ GUILD
+  if (screen === "guild") {
+    return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement(Hdr, {
+      icon: "\uD83C\uDFF0",
+      title: "GUILD"
+    }), /*#__PURE__*/React.createElement(PBar, null), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 4,
+        marginBottom: 10
+      }
+    }, [["hire", "🍺 HIRE"], ["shop", "🛒 SHOP"], ["gear", "🎒 GEAR"]].map(([id, lbl]) => /*#__PURE__*/React.createElement("button", {
+      key: id,
+      className: `tab ${gTab === id ? "on" : ""}`,
+      onClick: () => setGTab(id)
+    }, lbl))), gTab === "hire" && /*#__PURE__*/React.createElement(React.Fragment, null, party.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Your Party (", party.length, "/3)"), party.map(m => /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      className: "card",
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13
+      }
+    }, clsEmoji(m.baseCls, m.advCls), " ", /*#__PURE__*/React.createElement("b", null, m.name), " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#666",
+        fontSize: 10
+      }
+    }, "[", clsLabel(m.baseCls, m.advCls), "]"), " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "Lv.", m.level)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#666"
+      }
+    }, "STR", m.stats.str, " MAG", m.stats.mag, " DEX", m.stats.dex, " INT", m.stats.int, " WIL", m.stats.wil), m.perks?.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: C.pur
+      }
+    }, "\u26A1 ", m.perks.slice(0, 2).map(pid => PERKS.find(p => p.id === pid)?.name).join(", "), m.perks.length > 2 ? ` +${m.perks.length - 2}` : ""), /*#__PURE__*/React.createElement(Bar, {
+      cur: m.exp,
+      max: m.expNext,
+      color: C.pur
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9,
+        color: "#444"
+      }
+    }, "EXP ", m.exp, "/", m.expNext), !m.baseCls && m.level >= 5 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.pur,
+        fontSize: 11,
+        marginTop: 3
+      }
+    }, "\uD83C\uDFAF Ready for class promotion!"), m.baseCls && !m.advCls && m.level >= 10 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.gold,
+        fontSize: 11,
+        marginTop: 3
+      }
+    }, "\uD83C\uDFC6 Ready for advanced class!")), /*#__PURE__*/React.createElement("button", {
+      className: "btn red sm",
+      onClick: () => fire(m),
+      style: {
+        marginLeft: 7
+      }
+    }, "FIRE"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.gold,
+        fontSize: 10,
+        letterSpacing: ".18em",
+        textAlign: "center",
+        margin: "4px 0 7px"
+      }
+    }, "\u2500\u2500 FOR HIRE \u2500\u2500")), /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Available (", pool.length, ")"), pool.map(adv => {
+      const isNov = !adv.baseCls;
+      const tier = adv.tier;
+      const colors = ["", "#aaa", "#2ecc71", "#3498db", "#f39c12"];
+      return /*#__PURE__*/React.createElement("div", {
+        key: adv.id,
+        className: "card",
+        style: {
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderColor: colors[tier] + "33"
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 13
+        }
+      }, clsEmoji(adv.baseCls, adv.advCls), " ", /*#__PURE__*/React.createElement("b", null, adv.name), " ", /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: colors[tier],
+          fontSize: 10
+        }
+      }, "[", clsLabel(adv.baseCls, adv.advCls), "]")), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10,
+          color: "#666"
+        }
+      }, "STR", adv.stats.str, " MAG", adv.stats.mag, " DEX", adv.stats.dex, " INT", adv.stats.int, " WIL", adv.stats.wil), isNov && /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10,
+          color: C.pur
+        }
+      }, "\uD83C\uDFAF You assign their class at Lv.5"), adv.perks?.length > 0 && /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 10,
+          color: C.pur
+        }
+      }, "\u26A1 ", adv.perks.map(pid => PERKS.find(p => p.id === pid)?.name).join(", "))), /*#__PURE__*/React.createElement("button", {
+        className: `btn grn sm ${party.length >= 3 || player.gold < adv.wage ? "dis" : ""}`,
+        onClick: () => hire(adv),
+        style: {
+          marginLeft: 7
+        }
+      }, adv.wage, "G"));
+    }), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      style: {
+        fontSize: 12,
+        color: "#555",
+        marginTop: 2
+      },
+      onClick: refreshPool
+    }, "\uD83D\uDD04 Refresh (\u221220G)")), gTab === "shop" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Merchant's Wares"), shop.length === 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: "#444",
+        fontSize: 12,
+        textAlign: "center",
+        padding: 16
+      }
+    }, "Sold out."), shop.map(item => /*#__PURE__*/React.createElement("div", {
+      key: item.shopId,
+      className: "card",
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13
+      }
+    }, item.emoji, " ", /*#__PURE__*/React.createElement("b", null, item.name), " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: tierColor(item.tier),
+        fontSize: 10
+      }
+    }, "[T", item.tier, "]")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: item.type === "weapon" ? C.red : C.blu
+      }
+    }, item.type === "weapon" ? `+${item.atk} ATK` : `+${item.def} DEF`)), /*#__PURE__*/React.createElement("button", {
+      className: `btn grn sm ${player.gold < item.price ? "dis" : ""}`,
+      onClick: () => buyItem(item),
+      style: {
+        marginLeft: 7
+      }
+    }, item.price, "G"))), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      style: {
+        fontSize: 12,
+        color: "#555",
+        marginTop: 2
+      },
+      onClick: refreshShop
+    }, "\uD83D\uDD04 Refresh (\u221230G)")), gTab === "gear" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Equipped"), /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 9
+      }
+    }, /*#__PURE__*/React.createElement(GearRow, {
+      item: player.weapon,
+      label: "Weapon",
+      onUnequip: () => unequip("weapon")
+    }), /*#__PURE__*/React.createElement(GearRow, {
+      item: player.armor,
+      label: "Armor",
+      onUnequip: () => unequip("armor")
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Inventory (", (player.inventory || []).length, "/", has(player.perks, "deep_pockets") ? 10 : 8, ")"), !(player.inventory || []).length && /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: "#333",
+        fontSize: 12,
+        padding: "8px 0"
+      }
+    }, "\u2014 Empty \u2014"), (player.inventory || []).map((item, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "card",
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13
+      }
+    }, item.emoji, " ", /*#__PURE__*/React.createElement("b", null, item.name), " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: tierColor(item.tier),
+        fontSize: 10
+      }
+    }, "[T", item.tier, "]")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11,
+        color: item.type === "weapon" ? C.red : C.blu
+      }
+    }, item.type === "weapon" ? `+${item.atk} ATK` : `+${item.def} DEF`)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 4,
+        marginLeft: 7
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn grn sm",
+      onClick: () => equipFromInv(item, i)
+    }, "EQUIP"), /*#__PURE__*/React.createElement("button", {
+      className: "btn red sm",
+      onClick: () => dropFromInv(i)
+    }, "DROP"))))), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      style: {
+        marginTop: 7
+      },
+      onClick: () => setScreen("menu")
+    }, "\u2190 Back"));
+  }
+
+  // ════ LEVEL UP
+  if (screen === "levelup") {
+    const hfs = getFS({
+      ...player,
+      currentHp: player.hp
+    });
+    return /*#__PURE__*/React.createElement(Scr, null, /*#__PURE__*/React.createElement(Hdr, {
+      icon: "\u2B06\uFE0F",
+      title: "TRAINING"
+    }), /*#__PURE__*/React.createElement(PBar, null), player.statPoints > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        textAlign: "center",
+        marginBottom: 8,
+        border: `1px solid ${C.pur}66`
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: C.pur
+      }
+    }, "\u2605 ", player.statPoints, " Stat Points \u2014 spend wisely")), /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Allocate Stats"), [{
+      s: "str",
+      label: "💪 STR",
+      desc: "Phys ATK +2, Max HP +5",
+      cur: player.stats.str
+    }, {
+      s: "mag",
+      label: "🔮 MAG",
+      desc: "Magic ATK +2.5",
+      cur: player.stats.mag
+    }, {
+      s: "dex",
+      label: "🎯 DEX",
+      desc: "Crit/Dodge/Flee +%",
+      cur: player.stats.dex
+    }, {
+      s: "int",
+      label: "📚 INT",
+      desc: "EXP gain +1.5%/pt",
+      cur: player.stats.int
+    }, {
+      s: "wil",
+      label: "🧱 WIL",
+      desc: "Magic resistance",
+      cur: player.stats.wil
+    }].map(({
+      s,
+      label,
+      desc,
+      cur
+    }) => /*#__PURE__*/React.createElement("div", {
+      key: s,
+      className: "card",
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13
+      }
+    }, label, " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, cur)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#555"
+      }
+    }, desc)), /*#__PURE__*/React.createElement("button", {
+      className: "btn grn sm",
+      onClick: () => spendStat(s)
+    }, "+1")))), !player.statPoints && /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        textAlign: "center",
+        padding: 14,
+        marginBottom: 8
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 26,
+        marginBottom: 5
+      }
+    }, "\uD83D\uDDE1\uFE0F"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: "#555",
+        fontSize: 12
+      }
+    }, "No points \u2014 go explore!")), /*#__PURE__*/React.createElement("div", {
+      className: "lbl",
+      style: {
+        marginTop: 8
+      }
+    }, "Full Stats"), /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 10
+      }
+    }, [["Level", player.level], ["HP", `${player.hp}/${player.maxHp}`], ["Phys ATK", Math.floor(hfs.physAtk)], ["Mag ATK", Math.floor(hfs.magAtk)], ["Armor", Math.floor(hfs.armor)], ["WIL", hfs.wil], ["Crit", `${Math.floor(hfs.critC * 100)}%`], ["Dodge", `${Math.floor(hfs.dodgeC * 100)}%`], ["EXP", `${player.exp}/${player.expNext}`], ["Gold", `${player.gold}G`]].map(([k, v]) => /*#__PURE__*/React.createElement("div", {
+      key: k,
+      className: "row"
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#555"
+      }
+    }, k), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold,
+        fontSize: 12
+      }
+    }, v)))), player.perks?.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Hero Perks (", player.perks.length, ")"), /*#__PURE__*/React.createElement("div", {
+      className: "card",
+      style: {
+        marginBottom: 10
+      }
+    }, player.perks.map(pid => {
+      const p = PERKS.find(x => x.id === pid);
+      return p ? /*#__PURE__*/React.createElement("div", {
+        key: pid,
+        style: {
+          fontSize: 12,
+          padding: "3px 0",
+          borderBottom: `1px solid ${C.border}`
+        }
+      }, p.emoji, " ", /*#__PURE__*/React.createElement("b", null, p.name), " ", /*#__PURE__*/React.createElement("span", {
+        style: {
+          color: "#555",
+          fontSize: 10
+        }
+      }, "\u2014 ", p.desc)) : null;
+    }))), party.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "lbl"
+    }, "Party Progression"), party.map(m => /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      className: "card"
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        marginBottom: 3
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 13
+      }
+    }, clsEmoji(m.baseCls, m.advCls), " ", /*#__PURE__*/React.createElement("b", null, m.name), " ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: "#666",
+        fontSize: 10
+      }
+    }, "[", clsLabel(m.baseCls, m.advCls), "]")), /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: C.gold
+      }
+    }, "Lv.", m.level)), /*#__PURE__*/React.createElement(Bar, {
+      cur: m.exp,
+      max: m.expNext,
+      color: C.pur
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#555",
+        marginTop: 2
+      }
+    }, "EXP ", m.exp, "/", m.expNext), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#666",
+        marginTop: 2
+      }
+    }, "STR", m.stats.str, " MAG", m.stats.mag, " DEX", m.stats.dex, " INT", m.stats.int, " WIL", m.stats.wil), m.perks?.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: C.pur,
+        marginTop: 2
+      }
+    }, "\u26A1 ", m.perks.map(pid => PERKS.find(p => p.id === pid)?.name).filter(Boolean).join(" · "))))), /*#__PURE__*/React.createElement("button", {
+      className: "btn",
+      style: {
+        marginTop: 7
+      },
+      onClick: () => setScreen("menu")
+    }, "\u2190 Back"));
+  }
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
